@@ -1,0 +1,1 @@
+from .barcode_label_generator import BarcodeLabelGenerator

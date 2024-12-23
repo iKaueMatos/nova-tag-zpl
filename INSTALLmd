@@ -1,0 +1,18 @@
+# Instruções de Instalação - ZPL Labels
+
+### Pré-requisitos
+
+- Python 3.8 ou superior.
+- Pip instalado.
+
+### Instalação no Windows
+
+1. Baixe o instalador `zpl-labels_installer.exe`.
+2. Execute o instalador e siga as instruções.
+
+### Instalação no Linux
+
+1. Baixe o pacote `zpl-labels_1.0.deb`.
+2. Instale o pacote:
+   ```bash
+   sudo dpkg -i zpl-labels_1.0.deb
