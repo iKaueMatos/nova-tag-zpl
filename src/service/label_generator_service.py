@@ -10,9 +10,9 @@ class LabelGenerator:
         label_generators = {
             "1-Coluna": self.generate_zpl_1_column,
             "2-Colunas": self.generate_zpl_2_columns,
-            "4-etiquetas por página": self.generate_zpl_4_labels_per_page,
             "QRCode": self.generate_zpl_qrcode,
-            "Code128": self.generate_zpl_code128
+            "Code128": self.generate_zpl_code128,
+            "Ambos": self.generate_zpl_and_sku_ean
         }
 
         if label_format not in label_generators:
@@ -22,19 +22,31 @@ class LabelGenerator:
 
     def generate_zpl_2_columns(self, eans_and_skus: List[Tuple[str, str, int]]) -> str:
         zpl = []
-        
+
         for ean, sku, quantity in eans_and_skus:
             adjusted_quantity = quantity if quantity % 2 == 0 else quantity + 1
 
             for _ in range(adjusted_quantity // 2):
                 zpl.append("^XA^CI28")
-                if sku:
+                zpl.append("^PW800")
+                zpl.append("^LL200")
+
+                if sku and ean:
+                    self.append_both_label(zpl, ean, sku)
+                elif sku:
                     self.generate_sku(zpl, sku)
                 elif ean:
                     self.generate_ean(zpl, ean)
+
                 zpl.append("^XZ")
-    
-            return "\n".join(zpl)
+
+        return "\n".join(zpl)
+
+    def append_both_label(self, zpl: list, ean: str, sku: str) -> None:
+        zpl.append(f"^FO80,35^BY3,80,Y^BEN,100,Y^FD{ean}^FS")
+        zpl.append(f"^FO45,168^A0N,20,20^FDSKU: {sku}^FS")
+        zpl.append(f"^FO475,35^BY3,80,Y^BEN,100,Y^FD{ean}^FS")
+        zpl.append(f"^FO440,168^A0N,20,20^FDSKU: {sku}^FS")
 
     def generate_ean(self, zpl: list, ean: str) -> None:
         zpl.extend([
@@ -54,6 +66,21 @@ class LabelGenerator:
             f"^FO556,80^A0N,20,28^FH^FD{sku}^FS\n^FS"
         ])
 
+    def generate_zpl_and_sku_ean(self, eans_and_skus: List[Tuple[str, str, int]]) -> str:
+        zpl = []
+
+        for ean, sku, quantity in eans_and_skus:
+            for _ in range(quantity):
+                zpl.append("^XA^CI28")
+                if ean:
+                    zpl.append(f"^FO80,35^BY3,80,Y^BEN,100,Y^FD{ean}^FS")
+                    zpl.append(f"^FO475,35^BY3,80,Y^BEN,100,Y^FD{ean}^FS")
+                if sku:
+                    zpl.append(f"^FO440,168^A0N,20,20^FDSKU: {sku}^FS")
+                zpl.append("^XZ")
+
+        return "\n".join(zpl)
+
     def generate_zpl_1_column(self, eans_and_skus: List[Tuple[str, str, int]]) -> str:
         zpl = []
         for ean, sku, quantity in eans_and_skus:
@@ -64,20 +91,6 @@ class LabelGenerator:
                 if sku:
                     zpl.append(self.generate_barcode(sku))
                 zpl.append("^XZ")
-        return "\n".join(zpl)
-
-    def generate_zpl_4_labels_per_page(self, eans_and_skus: List[Tuple[str, str, int]]) -> str:
-        zpl = []
-        
-        for ean, sku, quantity in eans_and_skus:
-            adjusted_quantity = math.ceil(quantity / 4) * 4
-            
-            for _ in range(adjusted_quantity // 4):
-                zpl.append(f"^XA\n^FO50,50\n^BQN,2,10\n^FDMA,{ean}^FS\n"
-                        f"\n^FO400,50\n^BQN,2,10\n^FDMA,{ean}^FS\n"
-                        f"\n^FO50,400\n^BQN,2,10\n^FDMA,{ean}^FS\n"
-                        f"\n^FO400,400\n^BQN,2,10\n^FDMA,{ean}^FS\n"
-                        f"\n^XZ")
         return "\n".join(zpl)
 
     def generate_barcode(self, data: str) -> str:

@@ -1,6 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, filedialog
-from models.barcode_label_generator import BarcodeLabelGenerator
+from src.models import BarcodeLabelGenerator
 
 class LabelFormatView:
     def __init__(self, root):
@@ -18,7 +18,7 @@ class LabelFormatView:
         ])
         self.format_combobox.pack(pady=10)
         self.format_combobox.bind("<<ComboboxSelected>>", self.on_format_selected)
-        self.format_combobox['state'] = 'readonly'  # Ensure all options are displayed
+        self.format_combobox['state'] = 'readonly'
 
         self.generate_button = ttk.Button(self.root, text="Gerar ZPL", command=self.generate_zpl)
         self.generate_button.pack(pady=10)
