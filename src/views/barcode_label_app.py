@@ -108,9 +108,6 @@ class BarcodeLabelApp:
         self.format_combobox = ttk.Combobox(self.frame, textvariable=self.label_format, state="readonly")
         self.format_combobox['values'] = ("2-Colunas", "1-Coluna")
         self.format_combobox.grid(row=9, column=1, columnspan=2, sticky="ew", padx=5, pady=5)
-        self.format_combobox['values'] = ("1-Coluna", "2-Colunas")
-        self.format_combobox.grid(row=6, column=1, columnspan=2, sticky=(tk.W, tk.E), padx=5, pady=5)
-        self.format_combobox.current(0)
 
         self.root.bind('<Return>', lambda event: self.generate_zpl())
         self.toggle_fields()
