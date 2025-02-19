@@ -4,7 +4,7 @@ from src.views.barcode_label_app import BarcodeLabelApp
 
 def main():
     root = tk.Tk()
-    root.title("Gerador de Etiquetas - ZPL")
+    root.title("Tag - Gerador de etiquetas Zpl")
     
     root.geometry("1024x720")
     root.configure(bg='#f0f0f0')
