@@ -1,4 +1,3 @@
-import tkinter as tk
 from tkinter import ttk, filedialog
 from src.models import BarcodeLabelGenerator
 
@@ -13,8 +12,7 @@ class LabelFormatView:
         self.label.pack(pady=10)
 
         self.format_combobox = ttk.Combobox(self.root, values=[
-            "2-Colunas", "1-Coluna", "4-etiquetas por página", 
-            "Entiqueta Envio personalizado", "QRCode", "Code128"
+            "2-Colunas", "1-Coluna", "4-etiquetas por página", "QRCode", "Code128"
         ])
         self.format_combobox.pack(pady=10)
         self.format_combobox.bind("<<ComboboxSelected>>", self.on_format_selected)
@@ -35,9 +33,3 @@ class LabelFormatView:
         file_path = filedialog.asksaveasfilename(defaultextension=".zpl", filetypes=[("ZPL files", "*.zpl")])
         if file_path:
             self.generator.save_zpl_to_file(zpl_code, file_path)
-
-if __name__ == "__main__":
-    root = tk.Tk()
-    root.title("Gerador de Etiquetas")
-    app = LabelFormatView(root)
-    root.mainloop()

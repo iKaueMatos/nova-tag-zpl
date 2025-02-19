@@ -15,8 +15,9 @@ class SheetImporter:
 
         try:
             data = self._read_file(file_path)
+            data = self._clean_and_validate_data(data)
             self._process_data(data)
-            messagebox.showinfo("Sucesso", "Dados importados com sucesso!")
+            messagebox.showinfo("Sucesso", "Dados importados e tratados com sucesso!")
         except pd.errors.EmptyDataError:
             messagebox.showerror("Erro", "O arquivo está vazio.")
         except pd.errors.ParserError:
@@ -32,27 +33,44 @@ class SheetImporter:
         else:
             return pd.read_excel(file_path)
 
+    def _clean_and_validate_data(self, data):
+        """
+        Trata e valida os dados usando Pandas.
+        - Converte EAN e Quantidade para números.
+        - Garante que SKU seja tratado como string.
+        - Remove linhas com dados inválidos.
+        """
+        data["EAN"] = data["EAN"].astype(str).str.replace(".0", "", regex=False)
+        data["SKU"] = data["SKU"].astype(str).str.replace(".0", "", regex=False)
+
+        data["EAN"] = pd.to_numeric(data["EAN"], errors="coerce")
+
+        data["Quantidade"] = pd.to_numeric(data["Quantidade"], errors="coerce")
+
+        data = data.dropna(subset=["EAN", "Quantidade"])
+
+        data = data[data["EAN"] != 0]
+
+        data = data[data["Quantidade"] != 0]
+
+        data = data[data["SKU"].str.match(r"^[a-zA-Z0-9]+$")]
+
+        return data
+
     def _process_data(self, data):
-        for row in data.itertuples(index=False):
-            ean_str = str(getattr(row, "EAN", 0)).strip()
-            sku_str = str(getattr(row, "SKU", "")).strip()
-            quantity_str = str(getattr(row, "Quantidade", 0)).strip()
+        """
+        Processa os dados tratados e os adiciona ao Treeview e ao gerador.
+        """
+        for _, row in data.iterrows():
+            ean = int(row["EAN"])
+            sku = str(row["SKU"])
+            quantity = int(row["Quantidade"])
 
-            if ean_str.endswith(".0"):
-                ean_str = ean_str[:-2]
-
-            quantity = self._parse_quantity(quantity_str)
-
-            if self.code_type.get() == "EAN" and not ean_str:
-                continue
-            if self.code_type.get() == "SKU" and not sku_str:
-                continue
-
-            self.generator.add_ean_sku(ean_str, sku_str, quantity)
-            self.tree.insert("", tk.END, values=(ean_str, sku_str, quantity))
+            self.generator.add_ean_sku(ean, sku, quantity)
+            self.tree.insert("", tk.END, values=(ean, sku, quantity))
 
     def _parse_quantity(self, quantity_str):
         try:
-            return int(quantity_str)
+            return int(float(quantity_str))
         except ValueError:
-            raise ValueError(f"Quantidade inválida: {quantity_str}")
+            raise ValueError(f"Quantidade inválida: '{quantity_str}'. Deve ser um número.")
