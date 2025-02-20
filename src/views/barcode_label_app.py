@@ -2,8 +2,6 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog, scrolledtext
 import pandas as pd
 import math
-import requests
-import io
 from PIL import Image, ImageTk
 
 from src.enum.LabelFormatConstants import LabelFormatConstants
@@ -191,7 +189,7 @@ class BarcodeLabelApp:
 
         if image:
             width, height = image.size
-            new_width = 800
+            new_width = 600
             new_height = int((new_width / width) * height)
             image = image.resize((new_width, new_height), Image.LANCZOS)
 

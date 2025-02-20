@@ -2,7 +2,6 @@ import tkinter as tk
 from tkinter import ttk
 from src.views.barcode_label_app import BarcodeLabelApp
 
-
 def main():
     global root
     root = tk.Tk()
@@ -10,6 +9,7 @@ def main():
 
     root.geometry("1440x900")
     root.configure(bg='#f0f0f0')
+    root.iconbitmap("./tag.ico")
 
     root.resizable(True, True)
     app = BarcodeLabelApp(root)
