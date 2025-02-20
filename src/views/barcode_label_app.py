@@ -205,14 +205,31 @@ class BarcodeLabelApp:
             messagebox.showerror("Erro", "Nenhuma impressora disponível.")
             return
 
-        printer_name = simpledialog.askstring("Selecionar Impressora", "Escolha uma impressora:",
-                                              initialvalue=printers[0])
-        if printer_name and printer_name in printers:
-            self.selected_printer = printer_name
-            self.printer_service.set_printer(printer_name)
-            messagebox.showinfo("Sucesso", f"Impressora selecionada: {printer_name}")
-        else:
-            messagebox.showwarning("Aviso", "Nenhuma impressora selecionada.")
+        def confirm_selection():
+            selected = printer_var.get()
+            if selected in printers:
+                self.selected_printer = selected
+                self.printer_service.set_printer(selected)
+                messagebox.showinfo("Sucesso", f"Impressora selecionada: {selected}")
+                popup.destroy()
+            else:
+                messagebox.showwarning("Aviso", "Selecione uma impressora válida.")
+
+        popup = tk.Toplevel(self.root)
+        popup.title("Selecionar Impressora")
+        popup.geometry("350x200")
+        popup.grab_set()
+
+        tk.Label(popup, text="Escolha uma impressora:").pack(pady=5)
+
+        printer_var = tk.StringVar(value=printers[0])
+
+        printer_combobox = ttk.Combobox(popup, textvariable=printer_var, values=printers, state="readonly")
+        printer_combobox.pack(pady=10, padx=10, fill="x")
+        printer_combobox.config(width=30)
+        printer_combobox.current(0)
+
+        ttk.Button(popup, text="Confirmar", command=confirm_selection).pack(pady=10)
 
     def print_label(self):
         if not self.selected_printer:
