@@ -1,6 +1,6 @@
-# 🏷️ ZPL Labels
+# 🏷️ Nova Tag
 
-**ZPL Labels** é uma ferramenta desktop que auxilia na criação e impressão de etiquetas personalizadas no formato **ZPL** (Zebra Programming Language). Ideal para empresas que precisam gerar etiquetas para produtos, logística e identificação de itens.
+**Nova Tag** é uma ferramenta desktop que auxilia na criação e impressão de etiquetas personalizadas no formato **ZPL** (Zebra Programming Language). Ideal para empresas que precisam gerar etiquetas para produtos, logística e identificação de itens.
 
 ## 📜 Índice
 
@@ -101,5 +101,3 @@ Para dúvidas ou sugestões, entre em contato:
 - **LinkedIn:** [https://www.linkedin.com/in/ikauematos/](https://www.linkedin.com/in/ikauematos/)
 
 ---
-
-Este README oferece uma visão completa da ferramenta **ZPL Labels**, explicando suas funcionalidades, tecnologias empregadas e como utilizá-la para criar etiquetas personalizadas. 🚀
