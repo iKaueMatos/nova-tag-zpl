@@ -1,11 +1,11 @@
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog, scrolledtext
-import pandas as pd
 import math
 from PIL import Image, ImageTk
 
 from src.enum.LabelFormatConstants import LabelFormatConstants
 from src.models.barcode_label_generator import BarcodeLabelGenerator
+from src.service.download_template_service import TemplateDownloadService
 from src.service.sheet_importer import SheetImporter
 from src.service.zebra_labelary_api_service import ZebraLabelaryApiService
 from src.service.zebra_printer_service import ZebraPrinterService
@@ -16,11 +16,11 @@ class BarcodeLabelApp:
         self.printer_service = ZebraPrinterService()
         self.zpl_code = None
         self.selected_printer = None
-        self.zebra_laberaly_api_service = ZebraLabelaryApiService()
+        self.zebra_labelary_api_service = ZebraLabelaryApiService()
         self.root = root
 
         self.root.columnconfigure(0, weight=1)
-        self.root.columnconfigure(1, weight=1)
+        self.root.columnconfigure(1, weight=2)
         self.root.rowconfigure(0, weight=1)
 
         left_frame = ttk.Frame(root, padding=20)
@@ -29,36 +29,35 @@ class BarcodeLabelApp:
         self.right_frame = ttk.Frame(root, padding=20)
         self.right_frame.grid(row=0, column=1, sticky="nsew")
 
-        # ----------------- Lado Esquerdo: Controles de Geração e Gerenciamento do ZPL -----------------
-        # ----------------- Linha 0: Tipo de Código -----------------
         ttk.Label(left_frame, text="Tipo de Código:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
         self.code_type = tk.StringVar(value="EAN")
         self.code_type_combobox = ttk.Combobox(left_frame, textvariable=self.code_type, state="readonly")
-        self.code_type_combobox['values'] = ("EAN", "SKU", "QRCode", "Code128", "Ambos")
+        self.code_type_combobox['values'] = ("EAN", "SKU", "Ambos")
         self.code_type_combobox.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
         self.code_type_combobox.bind("<<ComboboxSelected>>", self.toggle_fields)
 
-        # ----------------- Linha 1: EAN -----------------
-        ttk.Label(left_frame, text="EAN:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
+        ttk.Label(left_frame, text="Formato da Etiqueta:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
+        self.label_format = tk.StringVar(value="1-Coluna")
+        self.format_combobox = ttk.Combobox(left_frame, textvariable=self.label_format, state="readonly")
+        self.format_combobox['values'] = ("1-Coluna", "2-Colunas")
+        self.format_combobox.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
+
+        ttk.Label(left_frame, text="EAN:").grid(row=2, column=0, sticky="w", padx=5, pady=5)
         self.ean_entry = ttk.Entry(left_frame)
-        self.ean_entry.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
+        self.ean_entry.grid(row=2, column=1, sticky="ew", padx=5, pady=5)
 
-        # ----------------- Linha 2: SKU -----------------
-        ttk.Label(left_frame, text="SKU:").grid(row=2, column=0, sticky="w", padx=5, pady=5)
+        ttk.Label(left_frame, text="SKU:").grid(row=3, column=0, sticky="w", padx=5, pady=5)
         self.sku_entry = ttk.Entry(left_frame)
-        self.sku_entry.grid(row=2, column=1, sticky="ew", padx=5, pady=5)
+        self.sku_entry.grid(row=3, column=1, sticky="ew", padx=5, pady=5)
 
-        # ----------------- Linha 3: Quantidade e Botão Adicionar -----------------
-        ttk.Label(left_frame, text="Quantidade:").grid(row=3, column=0, sticky="w", padx=5, pady=5)
+        ttk.Label(left_frame, text="Quantidade:").grid(row=4, column=0, sticky="w", padx=5, pady=5)
         self.quantity_entry = ttk.Entry(left_frame, width=10)
-        self.quantity_entry.grid(row=3, column=1, sticky="ew", padx=5, pady=5)
+        self.quantity_entry.grid(row=4, column=1, sticky="ew", padx=5, pady=5)
         self.add_button = ttk.Button(left_frame, text="Adicionar", command=self.add_entry)
-        self.add_button.grid(row=3, column=2, sticky="e", padx=5, pady=5)
+        self.add_button.grid(row=4, column=2, sticky="e", padx=5, pady=5)
 
-        # ----------------- Linha 4: TreeView -----------------
         tree_frame = ttk.Frame(left_frame)
-        tree_frame.grid(row=4, column=0, columnspan=3, sticky="nsew", padx=5, pady=5)
-
+        tree_frame.grid(row=5, column=0, columnspan=3, sticky="nsew", padx=5, pady=5)
         self.tree = ttk.Treeview(tree_frame, columns=("EAN", "SKU", "Quantidade"), show="headings", height=8)
         self.tree.heading("EAN", text="EAN")
         self.tree.heading("SKU", text="SKU")
@@ -66,85 +65,54 @@ class BarcodeLabelApp:
 
         tree_scroll_y = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
         tree_scroll_x = ttk.Scrollbar(tree_frame, orient="horizontal", command=self.tree.xview)
-
         self.tree.configure(yscrollcommand=tree_scroll_y.set, xscrollcommand=tree_scroll_x.set)
-
         tree_scroll_y.pack(side="right", fill="y")
         tree_scroll_x.pack(side="bottom", fill="x")
         self.tree.pack(expand=True, fill="both")
+        left_frame.rowconfigure(5, weight=1)
 
-        left_frame.rowconfigure(4, weight=1)
-
-        # ----------------- Linha 5: Rótulo para o ZPL -----------------
-        ttk.Label(left_frame, text="Código ZPL Gerado:").grid(row=5, column=0, columnspan=3, sticky="w", padx=5, pady=5)
-
-        # ----------------- Linha 6: Área de Texto (desabilitada) -----------------
+        ttk.Label(left_frame, text="Código ZPL Gerado:").grid(row=6, column=0, columnspan=3, sticky="w", padx=5, pady=5)
         self.label_text = scrolledtext.ScrolledText(left_frame, width=50, height=10, state=tk.DISABLED)
-        self.label_text.grid(row=6, column=0, columnspan=3, sticky="nsew", padx=5, pady=5)
-        left_frame.rowconfigure(6, weight=1)
+        self.label_text.grid(row=7, column=0, columnspan=3, sticky="nsew", padx=5, pady=5)
+        left_frame.rowconfigure(7, weight=1)
 
-        # ----------------- Linha 7: Botões de Ação (linha 1) -----------------
         button_frame1 = ttk.Frame(left_frame)
-        button_frame1.grid(row=7, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
-        button_frame1.columnconfigure(0, weight=1)
-        button_frame1.columnconfigure(1, weight=1)
-        button_frame1.columnconfigure(2, weight=1)
+        button_frame1.grid(row=8, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
 
         self.importer = SheetImporter(self.generator, self.tree, self.code_type)
         self.import_button = ttk.Button(button_frame1, text="Importar Planilha", command=self.import_sheet)
-        self.import_button.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
+        self.import_button.pack(side="left", expand=True, fill="both")
         self.generate_button = ttk.Button(button_frame1, text="Gerar ZPL", command=self.generate_zpl)
-        self.generate_button.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
+        self.generate_button.pack(side="left", expand=True, fill="both")
         self.clear_button = ttk.Button(button_frame1, text="Limpar Dados", command=self.clear_data)
-        self.clear_button.grid(row=0, column=2, sticky="ew", padx=5, pady=5)
+        self.clear_button.pack(side="left", expand=True, fill="both")
 
-        # ----------------- Linha 8: Botões de Ação (linha 2) -----------------
         button_frame2 = ttk.Frame(left_frame)
-        button_frame2.grid(row=8, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
-        button_frame2.columnconfigure(0, weight=1)
-        button_frame2.columnconfigure(1, weight=1)
-        button_frame2.columnconfigure(2, weight=1)
+        button_frame2.grid(row=9, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
         self.select_printer_button = ttk.Button(button_frame2, text="Selecionar Impressora",
                                                 command=self.select_printer, state=tk.DISABLED)
-        self.select_printer_button.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
-        self.print_button = ttk.Button(button_frame2, text="Imprimir",
-                                       command=self.print_label, state=tk.DISABLED)
+        self.select_printer_button.pack(side="left", expand=True, fill="both")
+        self.print_button = ttk.Button(button_frame2, text="Imprimir", command=self.print_label, state=tk.DISABLED)
+        self.print_button.pack(side="left", expand=True, fill="both")
 
-        self.print_button.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
+        self.template_download_service = TemplateDownloadService(self.root)
         self.download_button = ttk.Button(button_frame2, text="Baixar Template", command=self.download_template)
-        self.download_button.grid(row=0, column=2, sticky="ew", padx=5, pady=5)
+        self.download_button.pack(side="left", expand=True, fill="both")
 
         self.save_button = ttk.Button(button_frame2, text="Salvar ZPL", command=self.save_zpl)
-        self.save_button.grid(row=0, column=3, sticky="ew", padx=5, pady=5)
+        self.save_button.pack(side="left", expand=True, fill="both")
 
-        # ----------------- Linha 9: Formato da Etiqueta -----------------
-        ttk.Label(left_frame, text="Formato da Etiqueta:").grid(row=9, column=0, sticky="w", padx=5, pady=5)
-        self.label_format = tk.StringVar(value="2-Colunas")
-        self.format_combobox = ttk.Combobox(left_frame, textvariable=self.label_format, state="readonly")
-        self.format_combobox['values'] = ("2-Colunas", "1-Coluna")
-        self.format_combobox.grid(row=9, column=1, columnspan=2, sticky="ew", padx=5, pady=5)
-
-        # ----------------- Lado Direito: Imagem e Pré-visualização -----------------
         self.preview_label = ttk.Label(self.right_frame, text="Imagem da Etiqueta")
         self.preview_label.grid(row=0, column=0, pady=10)
 
-        self.root.columnconfigure(1, weight=2)
-        self.root.rowconfigure(0, weight=1)
-
         preview_frame = ttk.LabelFrame(self.right_frame, text="Pré-visualização da Etiqueta")
-        preview_frame.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
-
-        self.right_frame.rowconfigure(0, weight=1)
-        self.right_frame.columnconfigure(0, weight=1)
-
-        preview_frame.config(width=600, height=400)
-
+        preview_frame.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
         self.preview_image_label = ttk.Label(preview_frame)
         self.preview_image_label.pack(expand=True, fill="both", padx=5, pady=5)
-
         self.update_preview_button = ttk.Button(self.right_frame, text="Atualizar Preview", command=self.update_preview)
-        self.update_preview_button.grid(row=1, column=0, pady=10)
+        self.update_preview_button.grid(row=2, column=0, pady=10)
 
+        self.tree.bind("<ButtonRelease-1>", self.on_row_click)
         self.root.bind('<Return>', lambda event: self.generate_zpl())
         self.toggle_fields()
 
@@ -153,11 +121,9 @@ class BarcodeLabelApp:
             Gera a imagem a partir do ZPL (via Labelary) e exibe no Label de preview.
         """
         if not self.zpl_code:
-            messagebox.showerror("Erro", "Nenhum código ZPL para pré-visualizar.")
             return
 
         selected_label_format = self.label_format.get()
-
         if selected_label_format is None:
             messagebox.showerror("Erro", "Selecione um formato de etiqueta.")
             return
@@ -179,7 +145,7 @@ class BarcodeLabelApp:
         label_index = LabelFormatConstants.LABEL_INDEX_0
         output_format = LabelFormatConstants.OUTPUT_FORMAT_IMAGE
 
-        image = self.zebra_laberaly_api_service.generate_preview_image(
+        image = self.zebra_labelary_api_service.generate_preview_image(
             zpl_code_to_send,
             printer_density,
             label_dimensions,
@@ -268,6 +234,7 @@ class BarcodeLabelApp:
         if self.tree.get_children():
             self.tree.delete(*self.tree.get_children())
             self.generator.eans_and_skus.clear()
+            self.label_text.delete("0", tk.END);
             messagebox.showinfo("Sucesso", "Todos os dados foram limpos.")
         else:
             messagebox.showinfo("Informação", "Nenhum dado para limpar.")
@@ -308,57 +275,11 @@ class BarcodeLabelApp:
             return math.ceil(total_quantity / 4) * 4
         return total_quantity
 
-    def download_template(self):
-        def on_select_template_type():
-            selected_type = self.template_type.get()
-            template_data = pd.DataFrame()
-
-            if selected_type == "EAN":
-                template_data = pd.DataFrame({
-                    "EAN": ["", "", ""],
-                    "Quantidade": [0, 0, 0]
-                })
-            elif selected_type == "SKU":
-                template_data = pd.DataFrame({
-                    "SKU": ["", "", ""],
-                    "Quantidade": [0, 0, 0]
-                })
-            elif selected_type == "Ambos":
-                template_data = pd.DataFrame({
-                    "EAN": ["", "", ""],
-                    "SKU": ["", "", ""],
-                    "Quantidade": [0, 0, 0]
-                })
-
-            file_path = filedialog.asksaveasfilename(defaultextension=".csv",
-                                                     filetypes=[("CSV", "*.csv")])
-            if file_path:
-                try:
-                    template_data.to_csv(file_path, index=False)
-                    messagebox.showinfo("Sucesso", f"Template salvo em: {file_path}")
-                except Exception as e:
-                    messagebox.showerror("Erro", f"Erro ao salvar o template: {e}")
-            dialog.destroy()
-
-        dialog = tk.Toplevel(self.root)
-        dialog.title("Escolha o tipo de Planilha")
-
-        ttk.Label(dialog, text="Selecione o tipo de planilha que deseja gerar:") \
-            .grid(row=0, column=0, pady=10, padx=10)
-
-        self.template_type = tk.StringVar(value="EAN")
-        type_combobox = ttk.Combobox(dialog, textvariable=self.template_type, state="readonly")
-        type_combobox['values'] = ("EAN", "SKU", "Ambos")
-        type_combobox.grid(row=1, column=0, pady=10, padx=10)
-
-        generate_button = ttk.Button(dialog, text="Gerar Template", command=on_select_template_type)
-        generate_button.grid(row=2, column=0, pady=10, padx=10)
-
-        dialog.grab_set()
-        dialog.mainloop()
-
     def import_sheet(self):
         self.importer.import_sheet()
+
+    def download_template(self):
+        self.template_download_service.download_template()
 
     def generate_zpl(self):
         selected_items = self.tree.selection()
@@ -436,3 +357,11 @@ class BarcodeLabelApp:
             with open(file_path, "w") as f:
                 f.write(self.zpl_code)
             messagebox.showinfo("Sucesso", f"Arquivo salvo em: {file_path}")
+
+    def on_row_click(self, event):
+        """
+        Captura as informações da linha selecionada e exibe em um pop-up ou variável.
+        """
+        selected_item = self.tree.selection()
+        if selected_item:
+            self.update_preview()
