@@ -17,6 +17,7 @@ class LabelFormatConstants:
     LABEL_DIMENSIONS_2X8 = "2x8"  # 2 polegadas x 8 polegadas
     LABEL_DIMENSIONS_1X1 = "1x1"  # 1 polegada x 1 polegada
     LABEL_DIMENSIONS_5X25 = "5x2.5"
+    LABEL_DIMENSIONS_8X30 = "8x3.0"
 
     # Índice da etiqueta
     LABEL_INDEX_0 = "0"  # Primeira etiqueta

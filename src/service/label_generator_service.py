@@ -4,10 +4,13 @@ from src.service.type_model_tag_service import TypeModelTagService
 
 
 class LabelGenerator:
-    def __init__(self):
+    def __init__(self, label_format: str):  # Valor padrão definido
         self.type_model_tag_service = TypeModelTagService()
+        self.label_format = label_format
 
-    def generate_zpl(self, eans_and_skus: List[Tuple[str, str, int]], label_format: str) -> str:
+    def generate_zpl(self, eans_and_skus: List[Tuple[str, str, int]], label_format: str = None) -> str:
+        label_format = label_format or self.label_format
+
         if not label_format:
             raise ValueError("Formato de etiqueta não pode ser nulo ou vazio.")
 
@@ -35,9 +38,9 @@ class LabelGenerator:
                 if sku and ean:
                     self.type_model_tag_service.append_both_label(zpl, ean, sku)
                 elif sku:
-                    self.type_model_tag_service.generate_code_128(zpl, sku)
+                    self.type_model_tag_service.generate_code_128(zpl, sku, self.label_format)
                 elif ean:
-                    self.type_model_tag_service.generate_ean(zpl, ean)
+                    self.type_model_tag_service.generate_ean(zpl, ean, self.label_format)
 
                 zpl.append("^XZ")
         return "\n".join(zpl)
@@ -51,9 +54,9 @@ class LabelGenerator:
                 zpl.append("^LL300")
 
                 if ean:
-                    self.type_model_tag_service.generate_ean(zpl, ean)
+                    self.type_model_tag_service.generate_ean(zpl, ean, self.label_format)
                 if sku:
-                    self.type_model_tag_service.generate_code_128(zpl, sku)
+                    self.type_model_tag_service.generate_code_128(zpl, sku, self.label_format)
                 zpl.append("^XZ")
 
         zpl = [item for item in zpl if item is not None]

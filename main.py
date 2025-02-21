@@ -5,11 +5,11 @@ from src.views.barcode_label_app import BarcodeLabelApp
 def main():
     global root
     root = tk.Tk()
-    root.title("Tag - Gerador de etiquetas Zpl")
+    root.title("Nova Tag")
 
     root.geometry("1440x900")
     root.configure(bg='#f0f0f0')
-    root.iconbitmap("./tag.ico")
+    root.iconbitmap("./nova-software-logo.ico")
 
     root.resizable(True, True)
     app = BarcodeLabelApp(root)
@@ -27,7 +27,6 @@ def toggle_fullscreen(event=None):
 def exit_fullscreen(event=None):
     """Sai do modo tela cheia (pressionando ESC)."""
     root.attributes('-fullscreen', False)
-
 
 if __name__ == "__main__":
     main()

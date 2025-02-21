@@ -112,6 +112,7 @@ class BarcodeLabelApp:
         self.update_preview_button = ttk.Button(self.right_frame, text="Atualizar Preview", command=self.update_preview)
         self.update_preview_button.grid(row=2, column=0, pady=10)
 
+        self.root.bind("<Control-a>", self.select_all_rows)
         self.tree.bind("<ButtonRelease-1>", self.on_row_click)
         self.root.bind('<Return>', lambda event: self.generate_zpl())
         self.toggle_fields()
@@ -140,10 +141,17 @@ class BarcodeLabelApp:
             messagebox.showerror("Erro", "Código ZPL inválido ou não encontrado.")
             return
 
-        printer_density = LabelFormatConstants.PRINTER_DENSITY_8DPMM
-        label_dimensions = LabelFormatConstants.LABEL_DIMENSIONS_5X25
-        label_index = LabelFormatConstants.LABEL_INDEX_0
-        output_format = LabelFormatConstants.OUTPUT_FORMAT_IMAGE
+        if selected_label_format == "2-Colunas":
+            printer_density = LabelFormatConstants.PRINTER_DENSITY_8DPMM
+            label_dimensions = LabelFormatConstants.LABEL_DIMENSIONS_5X25
+            label_index = LabelFormatConstants.LABEL_INDEX_0
+            output_format = LabelFormatConstants.OUTPUT_FORMAT_IMAGE
+
+        if selected_label_format == "1-Coluna":
+            printer_density = LabelFormatConstants.PRINTER_DENSITY_8DPMM
+            label_dimensions = LabelFormatConstants.LABEL_DIMENSIONS_5X25
+            label_index = LabelFormatConstants.LABEL_INDEX_0
+            output_format = LabelFormatConstants.OUTPUT_FORMAT_IMAGE
 
         image = self.zebra_labelary_api_service.generate_preview_image(
             zpl_code_to_send,
@@ -207,6 +215,10 @@ class BarcodeLabelApp:
             messagebox.showerror("Erro", "Nenhum código ZPL para imprimir.")
             return
 
+        confirm = messagebox.askyesno("Confirmação", "Deseja realmente imprimir a etiqueta?")
+        if not confirm:
+            return
+
         self.printer_service.print_label(zpl_data)
         messagebox.showinfo("Sucesso", "Etiqueta enviada para a impressora.")
 
@@ -234,10 +246,15 @@ class BarcodeLabelApp:
         if self.tree.get_children():
             self.tree.delete(*self.tree.get_children())
             self.generator.eans_and_skus.clear()
-            self.label_text.delete("0", tk.END);
-            messagebox.showinfo("Sucesso", "Todos os dados foram limpos.")
-        else:
-            messagebox.showinfo("Informação", "Nenhum dado para limpar.")
+
+        self.label_text.config(state=tk.NORMAL)
+        self.label_text.delete("1.0", tk.END)
+        self.label_text.config(state=tk.DISABLED)
+
+        self.zpl_code = None
+        self.print_button.config(state=tk.DISABLED)
+        self.select_printer_button.config(state=tk.DISABLED)
+        messagebox.showinfo("Sucesso", "Todos os dados foram limpos.")
 
     def add_entry(self):
         ean = self.ean_entry.get().strip()
@@ -333,7 +350,7 @@ class BarcodeLabelApp:
                 self.generator.add_ean_sku(ean, sku, quantity)
 
         self.generator.set_label_format(label_format)
-        self.zpl_code = self.generator.generate_zpl(label_format=label_format)
+        self.zpl_code = self.generator.generate_zpl()
 
         if self.zpl_code:
             self.label_text.config(state="normal")
@@ -360,8 +377,12 @@ class BarcodeLabelApp:
 
     def on_row_click(self, event):
         """
-        Captura as informações da linha selecionada e exibe em um pop-up ou variável.
+            Captura as informações da linha selecionada.
         """
         selected_item = self.tree.selection()
         if selected_item:
             self.update_preview()
+
+    def select_all_rows(self, event=None):
+        for item in self.tree.get_children():
+            self.tree.selection_add(item)
