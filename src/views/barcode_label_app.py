@@ -272,6 +272,13 @@ class BarcodeLabelApp:
             messagebox.showerror("Erro", "Por favor, preencha o campo SKU.")
             return
 
+        eans_existentes = {item[0] for item in self.generator.eans_and_skus}
+        skus_existentes = {item[1] for item in self.generator.eans_and_skus}
+
+        if ean in eans_existentes or sku in skus_existentes:
+            messagebox.showwarning("Aviso", f"O EAN '{ean}' ou SKU '{sku}' já existem e foram desconsiderados.")
+            return
+
         if self.code_type.get() == "EAN":
             self.generator.add_ean_sku(int(ean), "", int(quantity))
         if self.code_type.get() == "SKU":
@@ -279,7 +286,7 @@ class BarcodeLabelApp:
         if self.code_type.get() == "Ambos":
             self.generator.add_ean_sku(int(ean), sku, int(quantity))
 
-        item_id = self.tree.insert("", tk.END, values=(ean, sku, quantity))
+        self.tree.insert("", tk.END, values=(ean, sku, quantity))
 
         self.ean_entry.delete(0, tk.END)
         self.sku_entry.delete(0, tk.END)

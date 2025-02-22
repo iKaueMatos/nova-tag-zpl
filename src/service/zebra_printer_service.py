@@ -1,4 +1,5 @@
 from zebra import Zebra
+import os
 
 class ZebraPrinterService:
     def __init__(self, printer_name=None):
@@ -18,3 +19,11 @@ class ZebraPrinterService:
             print("Etiqueta enviada para a impressora com sucesso!")
         except Exception as e:
             print("Erro ao imprimir:", str(e))
+
+    def clear_print_queue(self):
+        """Força a limpeza da fila de impressão no Windows."""
+        print("Limpando a fila de impressão...")
+        os.system("net stop spooler")
+        os.system("del /Q /F C:\\Windows\\System32\\spool\\PRINTERS\\*")
+        os.system("net start spooler")
+        print("Fila de impressão limpa com sucesso!")
