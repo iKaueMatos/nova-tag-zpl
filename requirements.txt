@@ -5,3 +5,5 @@ cx_Freeze==7.2.7
 zebra==0.2.0
 Pillow==10.3.0
 requests
+plyer
+python-dotenv

@@ -1,6 +1,17 @@
+import os
 import tkinter as tk
-from tkinter import ttk
+import threading
+from dotenv import load_dotenv
+
+from src.update.Updater import Updater
+from src.utils.notification_windows_linux import NotificationWindowsLinux
 from src.views.barcode_label_app import BarcodeLabelApp
+
+load_dotenv()
+
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+GITHUB_REPO = os.getenv("GITHUB_REPO")
+INSTALLER_NAME = os.getenv("INSTALLER_NAME")
 
 def main():
     global root
@@ -14,10 +25,25 @@ def main():
     root.resizable(True, True)
     app = BarcodeLabelApp(root)
 
+    threading.Thread(target=check_for_updates, daemon=True).start()
+
     root.bind("<F11>", toggle_fullscreen)
     root.bind("<Escape>", exit_fullscreen)
 
     root.mainloop()
+
+def check_for_updates():
+    """Verifica atualizações do GitHub antes de iniciar o app"""
+    if not GITHUB_TOKEN:
+        print("Erro: O token do GitHub não está configurado no arquivo .env.")
+        return
+
+    updater = Updater(repo=GITHUB_REPO, installer_name=INSTALLER_NAME, token=GITHUB_TOKEN)
+    updater.check_for_update()
+
+def show_notification(title, message):
+    """Exibe uma notificação no Windows ou Linux usando a classe NotificationWindowsLinux"""
+    NotificationWindowsLinux.show_notification(title, message)
 
 def toggle_fullscreen(event=None):
     """Alterna entre tela cheia e modo janela."""
