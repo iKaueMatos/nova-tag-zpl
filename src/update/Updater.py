@@ -18,6 +18,7 @@ class Updater:
         self.version_file = os.path.join(os.getenv("APPDATA"), "Novatag", "version.txt")
         self.temp_folder = os.getenv("TEMP")
         self.installer_path = os.path.join(self.temp_folder, self.installer_name)
+        self.last_version_checked = None
 
     def get_latest_version(self):
         """ Obtém a versão mais recente disponível no GitHub Releases """
@@ -28,7 +29,9 @@ class Updater:
 
         if response.status_code == 200:
             latest_version = response.json()["tag_name"]
-            NotificationWindowsLinux.show_update_notification(latest_version)
+            if latest_version != self.last_version_checked:
+                NotificationWindowsLinux.show_update_notification(latest_version)
+                self.last_version_checked = latest_version
             return latest_version
         else:
             NotificationWindowsLinux.show_error_notification("Não foi possível obter a versão mais recente.")
@@ -58,7 +61,7 @@ class Updater:
         return self.root, self.progress
 
     def download_installer(self):
-        """ Faz o download do novo instalador do GitHub Releases """
+        """ Faz o download do arquivo de código-fonte do GitHub Releases """
         latest_version = self.get_latest_version()
         if not latest_version:
             return None
@@ -72,18 +75,17 @@ class Updater:
             return None
 
         assets = response.json().get("assets", [])
-        installer_url = None
+        asset_url = None
         for asset in assets:
-            # Verifique se o nome do arquivo do instalador corresponde
-            if self.installer_name in asset["name"]:
-                installer_url = asset["browser_download_url"]
+            if 'nova-tag-1.2.zip' in asset["name"]:
+                asset_url = asset["browser_download_url"]
                 break
 
-        if not installer_url:
-            print("Erro: Arquivo do instalador não encontrado na release.")
+        if not asset_url:
+            print("Erro: Arquivo de código-fonte não encontrado na release.")
             return None
 
-        response = requests.get(installer_url, stream=True, headers=headers)
+        response = requests.get(asset_url, stream=True, headers=headers)
         total_size = int(response.headers.get("content-length", 0))
 
         if response.status_code == 200:
@@ -100,7 +102,7 @@ class Updater:
             NotificationWindowsLinux.show_download_notification()
             return self.installer_path
         else:
-            print("Erro ao baixar o novo instalador.")
+            print("Erro ao baixar o arquivo de código-fonte.")
             return None
 
     def run_installer(self):

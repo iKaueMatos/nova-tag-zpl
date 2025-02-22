@@ -25,14 +25,11 @@ def main():
     root.resizable(True, True)
     app = BarcodeLabelApp(root)
 
-    # Inicia a verificação de atualizações periódicas
     threading.Thread(target=periodic_check, daemon=True).start()
-
     root.bind("<F11>", toggle_fullscreen)
     root.bind("<Escape>", exit_fullscreen)
 
     root.mainloop()
-
 
 def periodic_check():
     """Verifica atualizações do GitHub periodicamente."""
@@ -41,9 +38,7 @@ def periodic_check():
         return
 
     updater = Updater(repo=GITHUB_REPO, installer_name=INSTALLER_NAME, token=GITHUB_TOKEN)
-
     updater.check_for_update()
-    threading.Timer(3600, periodic_check).start()
 
 def toggle_fullscreen(event=None):
     """Alterna entre tela cheia e modo janela."""
