@@ -5,6 +5,7 @@ import time
 import subprocess
 import tkinter as tk
 from tkinter import ttk
+import threading
 
 from src.utils.notification_windows_linux import NotificationWindowsLinux
 
@@ -73,7 +74,8 @@ class Updater:
         assets = response.json().get("assets", [])
         installer_url = None
         for asset in assets:
-            if asset["name"] == self.installer_name:
+            # Verifique se o nome do arquivo do instalador corresponde
+            if self.installer_name in asset["name"]:
                 installer_url = asset["browser_download_url"]
                 break
 
@@ -84,9 +86,8 @@ class Updater:
         response = requests.get(installer_url, stream=True, headers=headers)
         total_size = int(response.headers.get("content-length", 0))
 
-        root, progress = self.show_progress_window()
-
         if response.status_code == 200:
+            root, progress = self.show_progress_window()
             with open(self.installer_path, "wb") as file:
                 downloaded = 0
                 for chunk in response.iter_content(1024):
@@ -100,7 +101,6 @@ class Updater:
             return self.installer_path
         else:
             print("Erro ao baixar o novo instalador.")
-            root.destroy()
             return None
 
     def run_installer(self):
@@ -131,7 +131,7 @@ class Updater:
         else:
             print("Nenhuma atualização necessária.")
 
-    def periodic_check():
+    def periodic_check(self):
         """ Verifica atualizações periodicamente """
-        updater.check_for_update()
-        threading.Timer(3600, periodic_check).start()
+        self.check_for_update()
+        threading.Timer(3600, self.periodic_check).start()
