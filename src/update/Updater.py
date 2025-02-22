@@ -66,6 +66,8 @@ class Updater:
         if not latest_version:
             return None
 
+        version_name = latest_version.lstrip("v")
+
         url = f"https://api.github.com/repos/{self.github_repo}/releases/latest"
         headers = {"Authorization": f"token {self.token}"}
 
@@ -76,8 +78,9 @@ class Updater:
 
         assets = response.json().get("assets", [])
         asset_url = None
+
         for asset in assets:
-            if 'nova-tag-1.2.zip' in asset["name"]:
+            if f'nova-tag-{version_name}.zip' in asset["name"]:
                 asset_url = asset["browser_download_url"]
                 break
 

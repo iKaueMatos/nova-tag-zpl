@@ -3,7 +3,7 @@ from cx_Freeze import setup, Executable
 import os
 
 build_exe_options = {
-    "packages": ["tkinter", "pandas", "openpyxl", "reportlab", "os", "shutil", "requests", "zebra", "http"],
+    "packages": ["tkinter", "pandas", "openpyxl", "reportlab", "os", "shutil", "requests", "zebra", "http", "plyer"],
     "includes": ["src.views.barcode_label_app"],
     "excludes": ["unittest", "email", "http", "pdb"],
     "include_files": [
