@@ -130,3 +130,8 @@ class Updater:
                 self.run_installer()
         else:
             print("Nenhuma atualização necessária.")
+
+    def periodic_check():
+        """ Verifica atualizações periodicamente """
+        updater.check_for_update()
+        threading.Timer(3600, periodic_check).start()

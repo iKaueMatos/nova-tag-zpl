@@ -25,30 +25,31 @@ def main():
     root.resizable(True, True)
     app = BarcodeLabelApp(root)
 
-    threading.Thread(target=check_for_updates, daemon=True).start()
+    # Inicia a verificação de atualizações periódicas
+    threading.Thread(target=periodic_check, daemon=True).start()
 
     root.bind("<F11>", toggle_fullscreen)
     root.bind("<Escape>", exit_fullscreen)
 
     root.mainloop()
 
-def check_for_updates():
-    """Verifica atualizações do GitHub antes de iniciar o app"""
+
+def periodic_check():
+    """Verifica atualizações do GitHub periodicamente."""
     if not GITHUB_TOKEN:
         print("Erro: O token do GitHub não está configurado no arquivo .env.")
         return
 
     updater = Updater(repo=GITHUB_REPO, installer_name=INSTALLER_NAME, token=GITHUB_TOKEN)
-    updater.check_for_update()
 
-def show_notification(title, message):
-    """Exibe uma notificação no Windows ou Linux usando a classe NotificationWindowsLinux"""
-    NotificationWindowsLinux.show_notification(title, message)
+    updater.check_for_update()
+    threading.Timer(3600, periodic_check).start()
 
 def toggle_fullscreen(event=None):
     """Alterna entre tela cheia e modo janela."""
     state = root.attributes('-fullscreen')
     root.attributes('-fullscreen', not state)
+
 
 def exit_fullscreen(event=None):
     """Sai do modo tela cheia (pressionando ESC)."""
