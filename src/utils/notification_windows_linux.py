@@ -1,4 +1,6 @@
 import os
+from tkinter import messagebox
+import tkinter as tk
 from plyer import notification
 
 class NotificationWindowsLinux:
@@ -20,6 +22,10 @@ class NotificationWindowsLinux:
             timeout=timeout,
             app_icon=icon_path
         )
+
+        root = tk.Tk()
+        root.withdraw()
+        messagebox.showinfo(title, message)
 
     @staticmethod
     def show_update_notification(latest_version):

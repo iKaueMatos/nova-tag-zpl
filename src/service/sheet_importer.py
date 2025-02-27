@@ -2,6 +2,7 @@ import pandas as pd
 import tkinter as tk
 from tkinter import filedialog, messagebox
 
+
 class SheetImporter:
     def __init__(self, generator, tree, code_type):
         self.generator = generator
@@ -9,7 +10,9 @@ class SheetImporter:
         self.code_type = code_type
 
     def import_sheet(self):
-        file_path = filedialog.askopenfilename(filetypes=[("Planilhas", "*.csv *.xlsx")])
+        file_path = filedialog.askopenfilename(filetypes=[
+            ("Planilhas", "*.csv *.xlsx *.xls *.ods")
+        ])
         if not file_path:
             return
 
@@ -28,14 +31,29 @@ class SheetImporter:
             messagebox.showerror("Erro", f"Erro ao importar planilha: {e}")
 
     def _read_file(self, file_path):
-        if file_path.endswith(".csv"):
-            return pd.read_csv(file_path)
-        else:
-            return pd.read_excel(file_path)
+        """Lê o arquivo, tentando diferentes formatos e codificações se necessário."""
+        try:
+            if file_path.endswith(".csv"):
+                try:
+                    return pd.read_csv(file_path, encoding="utf-8")
+                except UnicodeDecodeError:
+                    return pd.read_csv(file_path, encoding="latin-1")  # Tentativa alternativa
+
+            elif file_path.endswith((".xlsx", ".xls")):
+                return pd.read_excel(file_path)
+
+            elif file_path.endswith(".ods"):
+                return pd.read_excel(file_path, engine="odf")
+
+            else:
+                raise ValueError("Formato de arquivo não suportado!")
+
+        except Exception as e:
+            raise ValueError(f"Erro ao ler o arquivo: {e}")
 
     def _clean_and_validate_data(self, data):
         """
-            Trata e valida os dados usando Pandas.
+        Trata e valida os dados:
             - Converte EAN e Quantidade para números.
             - Garante que SKU seja tratado como string.
             - Remove linhas com dados inválidos.
@@ -54,14 +72,15 @@ class SheetImporter:
         duplicated = data[data.duplicated(["EAN", "SKU"], keep=False)]
         if not duplicated.empty:
             duplicates_list = duplicated.to_string(index=False)
-            messagebox.showwarning("Aviso", f"Os seguintes EANs e SKUs foram desconsiderados por serem duplicados:\n{duplicates_list}")
+            messagebox.showwarning("Aviso",
+                                   f"Os seguintes EANs e SKUs foram desconsiderados por serem duplicados:\n{duplicates_list}")
             data = data.drop_duplicates(["EAN", "SKU"], keep='first')
 
         return data
 
     def _process_data(self, data):
         """
-            Processa os dados tratados e os adiciona ao Treeview e ao gerador.
+        Processa os dados tratados e os adiciona ao Treeview e ao gerador.
         """
         for _, row in data.iterrows():
             ean = int(row["EAN"])

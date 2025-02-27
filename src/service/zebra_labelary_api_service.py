@@ -2,7 +2,7 @@ import requests
 from PIL import Image
 import io
 
-from src.enum.LabelFormatConstants import LabelFormatConstants
+from src.core.config.enum.label_format_constants import LabelFormatConstants
 
 class ZebraLabelaryApiService:
     def generate_preview_image(self, zpl_code, printer_density="8dpmm", label_dimensions="5x2.5", label_index="0", output_format="image/png"):

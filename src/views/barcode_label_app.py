@@ -3,7 +3,8 @@ from tkinter import ttk, filedialog, messagebox, simpledialog, scrolledtext
 import math
 from PIL import Image, ImageTk
 
-from src.enum.LabelFormatConstants import LabelFormatConstants
+from src.core.config.config import Config
+from src.core.config.enum.label_format_constants import LabelFormatConstants
 from src.models.barcode_label_generator import BarcodeLabelGenerator
 from src.service.download_template_service import TemplateDownloadService
 from src.service.sheet_importer import SheetImporter
@@ -12,16 +13,39 @@ from src.service.zebra_printer_service import ZebraPrinterService
 
 class BarcodeLabelApp:
     def __init__(self, root):
+        self.config = Config()
         self.generator = BarcodeLabelGenerator()
         self.printer_service = ZebraPrinterService()
         self.zpl_code = None
-        self.selected_printer = None
+        self.selected_printer = self.config.load_saved_printer()
         self.zebra_labelary_api_service = ZebraLabelaryApiService()
         self.root = root
 
         self.root.columnconfigure(0, weight=1)
         self.root.columnconfigure(1, weight=2)
         self.root.rowconfigure(0, weight=1)
+
+        self.menu_bar = tk.Menu(root)
+        root.config(menu=self.menu_bar)
+
+        self.config_menu = tk.Menu(self.menu_bar, tearoff=0)
+        self.menu_bar.add_cascade(label="Configurações", menu=self.config_menu)
+
+        self.config_menu.add_command(label="Selecionar Impressora", command=self.select_printer,
+                                     accelerator="Ctrl+P")
+
+        self.advanced_config_menu = tk.Menu(self.config_menu, tearoff=0)
+        self.config_menu.add_cascade(label="Configurações Avançadas", menu=self.advanced_config_menu)
+        self.advanced_config_menu.add_command(label="Ajustar Densidade", command=self.adjust_density)
+
+        self.config_menu.add_command(label="Limpar Fila de Impressão", command=self.clear_print_queue)
+        self.root.bind("<Control-p>", self.select_printer)
+
+        self.actions_menu = tk.Menu(self.menu_bar, tearoff=0)
+        self.menu_bar.add_cascade(label="Ações", menu=self.actions_menu)
+
+        self.actions_menu.add_command(label="Importar Planilha", command=self.import_sheet)
+        self.actions_menu.add_command(label="Baixar Template", command=self.download_template)
 
         left_frame = ttk.Frame(root, padding=20)
         left_frame.grid(row=0, column=0, sticky="nsew")
@@ -80,8 +104,6 @@ class BarcodeLabelApp:
         button_frame1.grid(row=8, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
 
         self.importer = SheetImporter(self.generator, self.tree, self.code_type)
-        self.import_button = ttk.Button(button_frame1, text="Importar Planilha", command=self.import_sheet)
-        self.import_button.pack(side="left", expand=True, fill="both")
         self.generate_button = ttk.Button(button_frame1, text="Gerar ZPL", command=self.generate_zpl)
         self.generate_button.pack(side="left", expand=True, fill="both")
         self.clear_button = ttk.Button(button_frame1, text="Limpar Dados", command=self.clear_data)
@@ -89,15 +111,10 @@ class BarcodeLabelApp:
 
         button_frame2 = ttk.Frame(left_frame)
         button_frame2.grid(row=9, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
-        self.select_printer_button = ttk.Button(button_frame2, text="Selecionar Impressora",
-                                                command=self.select_printer, state=tk.DISABLED)
-        self.select_printer_button.pack(side="left", expand=True, fill="both")
         self.print_button = ttk.Button(button_frame2, text="Imprimir", command=self.print_label, state=tk.DISABLED)
         self.print_button.pack(side="left", expand=True, fill="both")
 
         self.template_download_service = TemplateDownloadService(self.root)
-        self.download_button = ttk.Button(button_frame2, text="Baixar Template", command=self.download_template)
-        self.download_button.pack(side="left", expand=True, fill="both")
 
         self.save_button = ttk.Button(button_frame2, text="Salvar ZPL", command=self.save_zpl)
         self.save_button.pack(side="left", expand=True, fill="both")
@@ -109,13 +126,15 @@ class BarcodeLabelApp:
         preview_frame.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
         self.preview_image_label = ttk.Label(preview_frame)
         self.preview_image_label.pack(expand=True, fill="both", padx=5, pady=5)
-        self.update_preview_button = ttk.Button(self.right_frame, text="Atualizar Preview", command=self.update_preview)
-        self.update_preview_button.grid(row=2, column=0, pady=10)
 
         self.root.bind("<Control-a>", self.select_all_rows)
         self.tree.bind("<ButtonRelease-1>", self.on_row_click)
         self.root.bind('<Return>', lambda event: self.generate_zpl())
         self.toggle_fields()
+
+    def clear_print_queue(self):
+        """Limpa a fila de impressão utilizando o serviço de impressora Zebra."""
+        self.printer_service.clear_print_queue()
 
     def update_preview(self):
         """
@@ -173,6 +192,14 @@ class BarcodeLabelApp:
         else:
             messagebox.showerror("Erro", "Falha ao gerar a pré-visualização da etiqueta.")
 
+    def adjust_density(self):
+        """Permite ao usuário ajustar a densidade de impressão através de uma caixa de entrada."""
+        density_value = simpledialog.askinteger("Ajustar Densidade", "Escolha a densidade de 0 a 30:",
+                                                minvalue=0, maxvalue=30, initialvalue=self.printer_service.density)
+        if density_value is not None:
+            self.printer_service.set_density(density_value)
+            print(f"Densidade ajustada para: {density_value}")
+
     def select_printer(self):
         printers = self.printer_service.get_printers()
         if not printers:
@@ -184,6 +211,7 @@ class BarcodeLabelApp:
             if selected in printers:
                 self.selected_printer = selected
                 self.printer_service.set_printer(selected)
+                self.config.save_printer(selected)
                 messagebox.showinfo("Sucesso", f"Impressora selecionada: {selected}")
                 popup.destroy()
             else:
@@ -365,7 +393,6 @@ class BarcodeLabelApp:
             self.label_text.insert("1.0", self.zpl_code)
             self.label_text.config(state="disabled")
             self.print_button.config(state=tk.NORMAL)
-            self.select_printer_button.config(state=tk.NORMAL)
             messagebox.showinfo("Sucesso", "Código ZPL gerado com sucesso!")
         else:
             messagebox.showerror("Erro", "Falha ao gerar o código ZPL.")
