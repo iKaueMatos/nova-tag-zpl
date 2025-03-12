@@ -1,7 +1,10 @@
+import customtkinter as ctk
+from tkinter import filedialog, messagebox, simpledialog, scrolledtext
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox, simpledialog, scrolledtext
+from tkinter import ttk
 import math
 from PIL import Image, ImageTk
+import threading
 
 from src.core.config.config import Config
 from src.core.config.enum.label_format_constants import LabelFormatConstants
@@ -11,7 +14,7 @@ from src.service.sheet_importer import SheetImporter
 from src.service.zebra_labelary_api_service import ZebraLabelaryApiService
 from src.service.zebra_printer_service import ZebraPrinterService
 
-class BarcodeLabelApp:
+class BarcodeScreen:
     def __init__(self, root):
         self.config = Config()
         self.generator = BarcodeLabelGenerator()
