@@ -13,77 +13,86 @@ from src.service.download_template_service import TemplateDownloadService
 from src.service.sheet_importer import SheetImporter
 from src.service.zebra_labelary_api_service import ZebraLabelaryApiService
 from src.service.zebra_printer_service import ZebraPrinterService
+from src.views.manual.manualScreen.zpl_manual_screen import ZPLManualView
+
 
 class BarcodeScreen:
     def __init__(self, root):
+        self.root = root
         self.config = Config()
         self.generator = BarcodeLabelGenerator()
         self.printer_service = ZebraPrinterService()
         self.zpl_code = None
         self.selected_printer = self.config.load_saved_printer()
         self.zebra_labelary_api_service = ZebraLabelaryApiService()
-        self.root = root
 
         self.root.columnconfigure(0, weight=1)
         self.root.columnconfigure(1, weight=2)
         self.root.rowconfigure(0, weight=1)
 
-        self.menu_bar = tk.Menu(root)
-        root.config(menu=self.menu_bar)
+        self.build_menu_bar()
+        self.build_left_panel()
+        self.build_right_panel()
+        self.bind_shortcuts()
+
+        self.toggle_fields()
+
+    def build_menu_bar(self):
+        self.menu_bar = tk.Menu(self.root)
+        self.root.config(menu=self.menu_bar)
 
         self.config_menu = tk.Menu(self.menu_bar, tearoff=0)
         self.menu_bar.add_cascade(label="Configurações", menu=self.config_menu)
 
-        self.config_menu.add_command(label="Selecionar Impressora", command=self.select_printer,
-                                     accelerator="Ctrl+P")
-
+        self.config_menu.add_command(label="Selecionar Impressora", command=self.select_printer, accelerator="Ctrl+P")
         self.advanced_config_menu = tk.Menu(self.config_menu, tearoff=0)
         self.config_menu.add_cascade(label="Configurações Avançadas", menu=self.advanced_config_menu)
         self.advanced_config_menu.add_command(label="Ajustar Densidade", command=self.adjust_density)
-
         self.config_menu.add_command(label="Limpar Fila de Impressão", command=self.clear_print_queue)
-        self.root.bind("<Control-p>", self.select_printer)
 
         self.actions_menu = tk.Menu(self.menu_bar, tearoff=0)
         self.menu_bar.add_cascade(label="Ações", menu=self.actions_menu)
-
         self.actions_menu.add_command(label="Importar Planilha", command=self.import_sheet)
         self.actions_menu.add_command(label="Baixar Template", command=self.download_template)
+        self.actions_menu.add_command(label="ZPL Manual", command=self.open_zpl_manual)
 
-        left_frame = ttk.Frame(root, padding=20)
-        left_frame.grid(row=0, column=0, sticky="nsew")
+    def build_left_panel(self):
+        self.left_frame = ttk.Frame(self.root, padding=20)
+        self.left_frame.grid(row=0, column=0, sticky="nsew")
 
-        self.right_frame = ttk.Frame(root, padding=20)
-        self.right_frame.grid(row=0, column=1, sticky="nsew")
-
-        ttk.Label(left_frame, text="Tipo de Código:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
+        # Tipo de Código
+        ttk.Label(self.left_frame, text="Tipo de Código:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
         self.code_type = tk.StringVar(value="EAN")
-        self.code_type_combobox = ttk.Combobox(left_frame, textvariable=self.code_type, state="readonly")
+        self.code_type_combobox = ttk.Combobox(self.left_frame, textvariable=self.code_type, state="readonly")
         self.code_type_combobox['values'] = ("EAN", "SKU", "Ambos")
         self.code_type_combobox.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
         self.code_type_combobox.bind("<<ComboboxSelected>>", self.toggle_fields)
 
-        ttk.Label(left_frame, text="Formato da Etiqueta:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
+        # Formato da Etiqueta
+        ttk.Label(self.left_frame, text="Formato da Etiqueta:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
         self.label_format = tk.StringVar(value="1-Coluna")
-        self.format_combobox = ttk.Combobox(left_frame, textvariable=self.label_format, state="readonly")
+        self.format_combobox = ttk.Combobox(self.left_frame, textvariable=self.label_format, state="readonly")
         self.format_combobox['values'] = ("1-Coluna", "2-Colunas")
         self.format_combobox.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
 
-        ttk.Label(left_frame, text="EAN:").grid(row=2, column=0, sticky="w", padx=5, pady=5)
-        self.ean_entry = ttk.Entry(left_frame)
+        # EAN / SKU / Quantidade
+        ttk.Label(self.left_frame, text="EAN:").grid(row=2, column=0, sticky="w", padx=5, pady=5)
+        self.ean_entry = ttk.Entry(self.left_frame)
         self.ean_entry.grid(row=2, column=1, sticky="ew", padx=5, pady=5)
 
-        ttk.Label(left_frame, text="SKU:").grid(row=3, column=0, sticky="w", padx=5, pady=5)
-        self.sku_entry = ttk.Entry(left_frame)
+        ttk.Label(self.left_frame, text="SKU:").grid(row=3, column=0, sticky="w", padx=5, pady=5)
+        self.sku_entry = ttk.Entry(self.left_frame)
         self.sku_entry.grid(row=3, column=1, sticky="ew", padx=5, pady=5)
 
-        ttk.Label(left_frame, text="Quantidade:").grid(row=4, column=0, sticky="w", padx=5, pady=5)
-        self.quantity_entry = ttk.Entry(left_frame, width=10)
+        ttk.Label(self.left_frame, text="Quantidade:").grid(row=4, column=0, sticky="w", padx=5, pady=5)
+        self.quantity_entry = ttk.Entry(self.left_frame, width=10)
         self.quantity_entry.grid(row=4, column=1, sticky="ew", padx=5, pady=5)
-        self.add_button = ttk.Button(left_frame, text="Adicionar", command=self.add_entry)
+
+        self.add_button = ttk.Button(self.left_frame, text="Adicionar", command=self.add_entry)
         self.add_button.grid(row=4, column=2, sticky="e", padx=5, pady=5)
 
-        tree_frame = ttk.Frame(left_frame)
+        # Treeview (Tabela)
+        tree_frame = ttk.Frame(self.left_frame)
         tree_frame.grid(row=5, column=0, columnspan=3, sticky="nsew", padx=5, pady=5)
         self.tree = ttk.Treeview(tree_frame, columns=("EAN", "SKU", "Quantidade"), show="headings", height=8)
         self.tree.heading("EAN", text="EAN")
@@ -96,31 +105,36 @@ class BarcodeScreen:
         tree_scroll_y.pack(side="right", fill="y")
         tree_scroll_x.pack(side="bottom", fill="x")
         self.tree.pack(expand=True, fill="both")
-        left_frame.rowconfigure(5, weight=1)
+        self.left_frame.rowconfigure(5, weight=1)
 
-        ttk.Label(left_frame, text="Código ZPL Gerado:").grid(row=6, column=0, columnspan=3, sticky="w", padx=5, pady=5)
-        self.label_text = scrolledtext.ScrolledText(left_frame, width=50, height=10, state=tk.DISABLED)
+        # ZPL gerado
+        ttk.Label(self.left_frame, text="Código ZPL Gerado:").grid(row=6, column=0, columnspan=3, sticky="w", padx=5,
+                                                                   pady=5)
+        self.label_text = scrolledtext.ScrolledText(self.left_frame, width=50, height=10, state=tk.DISABLED)
         self.label_text.grid(row=7, column=0, columnspan=3, sticky="nsew", padx=5, pady=5)
-        left_frame.rowconfigure(7, weight=1)
+        self.left_frame.rowconfigure(7, weight=1)
 
-        button_frame1 = ttk.Frame(left_frame)
+        # Botões de ação
+        button_frame1 = ttk.Frame(self.left_frame)
         button_frame1.grid(row=8, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
-
-        self.importer = SheetImporter(self.generator, self.tree, self.code_type)
         self.generate_button = ttk.Button(button_frame1, text="Gerar ZPL", command=self.generate_zpl)
         self.generate_button.pack(side="left", expand=True, fill="both")
         self.clear_button = ttk.Button(button_frame1, text="Limpar Dados", command=self.clear_data)
         self.clear_button.pack(side="left", expand=True, fill="both")
 
-        button_frame2 = ttk.Frame(left_frame)
+        button_frame2 = ttk.Frame(self.left_frame)
         button_frame2.grid(row=9, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
         self.print_button = ttk.Button(button_frame2, text="Imprimir", command=self.print_label, state=tk.DISABLED)
         self.print_button.pack(side="left", expand=True, fill="both")
-
-        self.template_download_service = TemplateDownloadService(self.root)
-
         self.save_button = ttk.Button(button_frame2, text="Salvar ZPL", command=self.save_zpl)
         self.save_button.pack(side="left", expand=True, fill="both")
+
+        self.importer = SheetImporter(self.generator, self.tree, self.code_type)
+        self.template_download_service = TemplateDownloadService(self.root)
+
+    def build_right_panel(self):
+        self.right_frame = ttk.Frame(self.root, padding=20)
+        self.right_frame.grid(row=0, column=1, sticky="nsew")
 
         self.preview_label = ttk.Label(self.right_frame, text="Imagem da Etiqueta")
         self.preview_label.grid(row=0, column=0, pady=10)
@@ -130,10 +144,11 @@ class BarcodeScreen:
         self.preview_image_label = ttk.Label(preview_frame)
         self.preview_image_label.pack(expand=True, fill="both", padx=5, pady=5)
 
+    def bind_shortcuts(self):
+        self.root.bind("<Control-p>", self.select_printer)
         self.root.bind("<Control-a>", self.select_all_rows)
         self.tree.bind("<ButtonRelease-1>", self.on_row_click)
-        self.root.bind('<Return>', lambda event: self.generate_zpl())
-        self.toggle_fields()
+        self.root.bind("<Return>", lambda event: self.generate_zpl())
 
     def clear_print_queue(self):
         """Limpa a fila de impressão utilizando o serviço de impressora Zebra."""
@@ -423,3 +438,6 @@ class BarcodeScreen:
     def select_all_rows(self, event=None):
         for item in self.tree.get_children():
             self.tree.selection_add(item)
+
+    def open_zpl_manual(self):
+        ZPLManualView(self.root, self.printer_service, self.zebra_labelary_api_service)
