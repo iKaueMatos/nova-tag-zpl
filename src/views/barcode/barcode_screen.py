@@ -3,6 +3,7 @@ import tkinter as tk
 from tkinter import ttk
 import math
 from PIL import Image, ImageTk
+import yaml
 
 from src.core.config.config import Config
 from src.core.config.enum.label_format_constants import LabelFormatConstants
@@ -11,7 +12,9 @@ from src.service.sheet.download_template_service import TemplateDownloadService
 from src.service.sheet.sheet_importer_service import SheetImporterService
 from src.service.zebra.zebra_labelary_api_service import ZebraLabelaryApiService
 from src.service.zebra.zebra_printer_service import ZebraPrinterService
+from src.utils.dialog_center import DialogCenter
 from src.views.manual.manualScreen.zpl_manual_screen import ZPLManualView
+from src.service.validation.ean_validator import EANValidator
 
 class BarcodeScreen:
     def __init__(self, root):
@@ -22,8 +25,10 @@ class BarcodeScreen:
         self.zpl_code = None
         self.selected_printer = self.config.load_saved_printer()
         self.zebra_labelary_api_service = ZebraLabelaryApiService()
-        self.manual_eans = []  # Array para armazenar os EANs adicionados manualmente
-        self.manual_skus = []  # Array para armazenar os SKUs adicionados manualmente
+        self.manual_eans = []
+        self.manual_skus = []
+        self.routes = self.load_routes()
+        self.select_all_var = tk.BooleanVar()  # Variável para o checkbox de selecionar todos
 
         self.root.columnconfigure(0, weight=1)
         self.root.columnconfigure(1, weight=2)
@@ -35,6 +40,10 @@ class BarcodeScreen:
         self.bind_shortcuts()
 
         self.toggle_fields()
+
+    def load_routes(self):
+        with open('routes.yaml', 'r') as file:
+            return yaml.safe_load(file)
 
     def build_menu_bar(self):
         self.menu_bar = tk.Menu(self.root)
@@ -55,7 +64,11 @@ class BarcodeScreen:
         self.menu_bar.add_cascade(label="Ações", menu=self.actions_menu)
         self.actions_menu.add_command(label="Importar Planilha", command=self.import_sheet)
         self.actions_menu.add_command(label="Baixar Template", command=self.download_template)
-        self.actions_menu.add_command(label="ZPL Manual", command=self.open_zpl_manual)
+
+        self.new_screens_menu = tk.Menu(self.menu_bar, tearoff=0)
+        self.menu_bar.add_cascade(label="Ferramentas Adicionais", menu=self.new_screens_menu)
+        for screen_name in self.routes['screens']:
+            self.new_screens_menu.add_command(label=screen_name, command=lambda name=screen_name: self.open_screen(name))
 
     def build_left_panel(self):
         self.left_frame = ttk.Frame(self.root, padding=20)
@@ -107,23 +120,24 @@ class BarcodeScreen:
         self.tree.pack(expand=True, fill="both")
         self.left_frame.rowconfigure(5, weight=1)
 
-        # ZPL gerado
         ttk.Label(self.left_frame, text="Código ZPL Gerado:").grid(row=6, column=0, columnspan=3, sticky="w", padx=5,
                                                                    pady=5)
         self.label_text = scrolledtext.ScrolledText(self.left_frame, width=50, height=10, state=tk.DISABLED)
         self.label_text.grid(row=7, column=0, columnspan=3, sticky="nsew", padx=5, pady=5)
         self.left_frame.rowconfigure(7, weight=1)
 
-        # Botões de ação
+        self.select_all_checkbox = ttk.Checkbutton(self.left_frame, text="Selecionar Todos", variable=self.select_all_var, command=self.toggle_select_all)
+        self.select_all_checkbox.grid(row=8, column=0, columnspan=3, sticky="w", padx=5, pady=5)
+
         button_frame1 = ttk.Frame(self.left_frame)
-        button_frame1.grid(row=8, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
+        button_frame1.grid(row=9, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
         self.generate_button = ttk.Button(button_frame1, text="Gerar ZPL", command=self.generate_zpl)
         self.generate_button.pack(side="left", expand=True, fill="both")
         self.clear_button = ttk.Button(button_frame1, text="Limpar Dados", command=self.clear_data)
         self.clear_button.pack(side="left", expand=True, fill="both")
 
         button_frame2 = ttk.Frame(self.left_frame)
-        button_frame2.grid(row=9, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
+        button_frame2.grid(row=10, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
         self.print_button = ttk.Button(button_frame2, text="Imprimir", command=self.print_label, state=tk.DISABLED)
         self.print_button.pack(side="left", expand=True, fill="both")
         self.save_button = ttk.Button(button_frame2, text="Salvar ZPL", command=self.save_zpl)
@@ -219,6 +233,14 @@ class BarcodeScreen:
         else:
             messagebox.showerror("Erro", "Falha ao gerar a pré-visualização da etiqueta.")
 
+    def minimize_main_window(self):
+        self.root.iconify()
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close_preview)
+
+    def on_close_preview(self):
+        self.root.deiconify()
+        self.root.destroy()
+
     def adjust_density(self):
         """Permite ao usuário ajustar a densidade de impressão através de uma caixa de entrada."""
         density_value = simpledialog.askinteger("Ajustar Densidade", "Escolha a densidade de 0 a 30:",
@@ -246,8 +268,10 @@ class BarcodeScreen:
 
         popup = tk.Toplevel(self.root)
         popup.title("Selecionar Impressora")
-        popup.geometry("350x200")
+        popup.geometry("400x200")
         popup.grab_set()
+
+        DialogCenter.center_window(popup)
 
         tk.Label(popup, text="Escolha uma impressora:").pack(pady=5)
 
@@ -325,6 +349,10 @@ class BarcodeScreen:
             return
         if self.code_type.get() == "SKU" and not sku:
             messagebox.showerror("Erro", "Por favor, preencha o campo SKU.")
+            return
+
+        if self.code_type.get() == "EAN" and not EANValidator.is_valid_ean(ean):
+            messagebox.showerror("Erro", "EAN inválido. Deve conter 8, 12, 13 ou 14 dígitos.")
             return
 
         eans_exits = {item[0] for item in self.generator.eans_and_skus}
@@ -532,3 +560,15 @@ class BarcodeScreen:
         entry.bind("<Return>", save_edit)
         entry.bind("<FocusOut>", lambda e: entry.destroy())
         self.tree.bind("<Double-1>", self.on_double_click)
+
+    def open_screen(self, screen_name):
+        if screen_name == "Impressão ZPL":
+            ZPLManualView(self.root, self.printer_service, self.zebra_labelary_api_service)
+        else:
+            messagebox.showinfo("Info", f"Tela '{screen_name}' não implementada.")
+
+    def toggle_select_all(self):
+        if self.select_all_var.get():
+            self.select_all_rows()
+        else:
+            self.tree.selection_remove(self.tree.get_children())

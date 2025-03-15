@@ -2,6 +2,7 @@ import tkinter as tk
 
 from src.core.database.database import Database
 from src.views.barcode.barcode_screen import BarcodeScreen
+from src.utils.dialog_center import DialogCenter
 
 def main():
     def initialize():

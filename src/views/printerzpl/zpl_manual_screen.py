@@ -1,7 +1,10 @@
 import tkinter as tk
-from tkinter import ttk, scrolledtext, messagebox, simpledialog
+from tkinter import ttk, scrolledtext, messagebox, simpledialog, filedialog
 from PIL import Image, ImageTk
 import io
+
+from src.utils.dialog_center import DialogCenter
+
 
 class ZPLManualView:
     def __init__(self, parent, printer_service, zebra_labelary_api_service):
@@ -17,6 +20,7 @@ class ZPLManualView:
         self.window.rowconfigure(0, weight=1)
         self.build_menu_bar()
         self.build_layout()
+        self.minimize_main_window()
 
     def on_close(self):
         """Reexibe a janela principal ao fechar a secundária"""
@@ -40,15 +44,15 @@ class ZPLManualView:
         left_frame = ttk.Frame(self.window, padding=10)
         left_frame.grid(row=0, column=0, sticky="nsew")
 
-        ttk.Label(left_frame, text="Código ZPL Inserido:").pack(anchor="w")
-        self.zpl_textarea = scrolledtext.ScrolledText(left_frame, width=50, height=30)
+        ttk.Label(left_frame, text="Código ZPL Inserido:", font=("Helvetica", 12, "bold")).pack(anchor="w")
+        self.zpl_textarea = scrolledtext.ScrolledText(left_frame, width=50, height=30, font=("Courier", 10))
         self.zpl_textarea.pack(expand=True, fill="both")
 
         right_frame = ttk.Frame(self.window, padding=10)
         right_frame.grid(row=0, column=1, sticky="nsew")
 
-        ttk.Label(right_frame, text="Pré-visualização da Etiqueta:").pack(anchor="w")
-        self.preview_image_label = ttk.Label(right_frame)
+        ttk.Label(right_frame, text="Pré-visualização da Etiqueta:", font=("Helvetica", 12, "bold")).pack(anchor="w")
+        self.preview_image_label = ttk.Label(right_frame, text="Preview não disponível", relief="sunken", anchor="center")
         self.preview_image_label.pack(expand=True, fill="both")
 
         button_frame = ttk.Frame(self.window, padding=10)
@@ -59,6 +63,9 @@ class ZPLManualView:
 
         self.print_button = ttk.Button(button_frame, text="Imprimir", command=self.print_zpl)
         self.print_button.pack(side="left", padx=5, pady=5)
+
+        self.upload_button = ttk.Button(button_frame, text="Upload Arquivo", command=self.upload_file)
+        self.upload_button.pack(side="left", padx=5, pady=5)
 
     def generate_preview(self):
         zpl_code = self.zpl_textarea.get("1.0", tk.END).strip()
@@ -72,12 +79,16 @@ class ZPLManualView:
                 image = Image.open(io.BytesIO(image_data))
                 image = image.resize((350, 350), Image.ANTIALIAS)
                 photo = ImageTk.PhotoImage(image)
-                self.preview_image_label.configure(image=photo)
+                self.preview_image_label.configure(image=photo, text="")
                 self.preview_image_label.image = photo
             else:
                 messagebox.showerror("Erro", "Não foi possível gerar a imagem desta etiqueta.")
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao gerar preview: {e}")
+
+    def minimize_main_window(self):
+        self.parent.iconify()
+        self.window.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def print_zpl(self):
         zpl_code = self.zpl_textarea.get("1.0", tk.END).strip()
@@ -119,8 +130,9 @@ class ZPLManualView:
 
         popup = tk.Toplevel(self.window)
         popup.title("Selecionar Impressora")
-        popup.geometry("350x200")
+        popup.geometry("400x200")
         popup.grab_set()
+        DialogCenter.center_window(popup)
 
         tk.Label(popup, text="Escolha uma impressora:").pack(pady=5)
 
@@ -131,3 +143,29 @@ class ZPLManualView:
         printer_combobox.config(width=30)
         printer_combobox.current(0)
         ttk.Button(popup, text="Confirmar", command=confirm_selection).pack(pady=10)
+
+    def upload_file(self):
+        file_path = filedialog.askopenfilename(filetypes=[("Arquivos de Texto", "*.txt"), ("Arquivos ZPL", "*.zpl")])
+        if not file_path:
+            return
+
+        try:
+            with open(file_path, "r") as file:
+                content = file.read().strip()
+                if not content:
+                    messagebox.showwarning("Aviso", "O arquivo está vazio.")
+                    return
+
+                if not self.is_valid_zpl(content):
+                    messagebox.showerror("Erro", "O conteúdo do arquivo não é um código ZPL válido.")
+                    return
+
+                self.zpl_textarea.delete("1.0", tk.END)
+                self.zpl_textarea.insert("1.0", content)
+                messagebox.showinfo("Sucesso", f"Arquivo '{file_path}' carregado com sucesso!")
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao carregar o arquivo: {e}")
+
+    def is_valid_zpl(self, content):
+        """Verifica se o conteúdo do arquivo é um código ZPL válido."""
+        return "^XA" in content and "^XZ" in content
