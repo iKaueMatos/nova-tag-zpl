@@ -2,11 +2,15 @@ import pandas as pd
 import tkinter as tk
 from tkinter import filedialog, messagebox
 
+from src.service.validation.ean_validator import EANValidator
+
+
 class SheetImporterService:
-    def __init__(self, generator, tree, code_type):
+    def __init__(self, generator, tree, code_type, label_format):
         self.generator = generator
         self.tree = tree
         self.code_type = code_type
+        self.label_format = label_format
 
     def import_sheet(self):
         file_path = filedialog.askopenfilename(filetypes=[("Planilhas", "*.csv *.xlsx *.xls *.ods")])
@@ -61,7 +65,9 @@ class SheetImporterService:
 
         data.loc[:, "EAN"] = data["EAN"].fillna("-")
         data.loc[:, "SKU"] = data["SKU"].fillna("-")
-        data.loc[:, "Quantidade"] = data["Quantidade"].fillna("-").astype(str)
+        data["Quantidade"] = pd.to_numeric(data["Quantidade"], errors="coerce", downcast="integer")
+        data["Quantidade"] = data["Quantidade"].fillna(0).astype(int)
+        data.loc[:, "Quantidade"] = data["Quantidade"].astype(str)
 
         data["EAN"] = pd.to_numeric(data["EAN"], errors="coerce", downcast="integer")
         data["Quantidade"] = pd.to_numeric(data["Quantidade"], errors="coerce", downcast="integer")
@@ -84,21 +90,54 @@ class SheetImporterService:
         """
         Processa os dados tratados e os adiciona ao Treeview e ao gerador.
         """
-        for _, row in data.iterrows():
-            ean = int(row["EAN"])
-            sku = str(row["SKU"])
-            quantity = int(row["Quantidade"])
+        columns = data.columns
 
-            if ean == "-":
-                ean = None
-            if sku == "-":
-                sku = None
-            if quantity == "-":
-                quantity = 0
+        if "EAN" in columns and "SKU" in columns:
+            self.code_type.set("Ambos")
+        elif "EAN" in columns:
+            self.code_type.set("EAN")
+        elif "SKU" in columns:
+            self.code_type.set("SKU")
+        else:
+            messagebox.showerror("Erro", "A planilha deve conter pelo menos uma coluna 'EAN' ou 'SKU'.")
+            return
+
+        if "EAN" in columns and "SKU" in columns:
+            confirm = messagebox.askyesno("Confirmação", "A planilha contém colunas 'EAN' e 'SKU'. Deseja gerar etiquetas com ambos os dados?")
+            if not confirm:
+                return
+
+        label_format = messagebox.askquestion("Formato da Etiqueta", "Deseja gerar etiquetas em \n (SIM) 1-Coluna \n ou \n (NÃO) 2-Colunas?", icon='question')
+        if label_format == 'yes':
+            self.label_format.set("1-Coluna")
+        else:
+            self.label_format.set("2-Colunas")
+
+        for _, row in data.iterrows():
+            ean = int(row.get("EAN", ""))
+            sku = str(row.get("SKU", "")).strip()
+            quantity = int(row.get("Quantidade", ""))
+
+            if not quantity:
+                messagebox.showerror("Erro", "Quantidade inválida.")
+                continue
+
+            if self.code_type.get() == "EAN" and not ean:
+                messagebox.showerror("Erro", "Por favor, preencha o campo EAN.")
+                continue
+            if self.code_type.get() == "SKU" and not sku:
+                messagebox.showerror("Erro", "Por favor, preencha o campo SKU.")
+                continue
+
+            if self.code_type.get() == "EAN" and not EANValidator.is_valid_ean(ean):
+                messagebox.showerror("Erro", "EAN inválido. Deve conter 8, 12, 13 ou 14 dígitos.")
+                continue
 
             if any(ean == existing[0] and sku == existing[1] for existing in self.generator.eans_and_skus):
                 messagebox.showwarning("Aviso", f"EAN {ean} e SKU {sku} já existem e foram desconsiderados.")
                 continue
 
-            self.generator.add_ean_sku(ean, sku, quantity)
+            self.generator.add_ean_sku(ean, sku, int(quantity))
             self.tree.insert("", tk.END, values=(ean, sku, quantity))
+
+        messagebox.showinfo("Sucesso", "Dados processados e etiquetas geradas com sucesso!")

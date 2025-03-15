@@ -2,7 +2,6 @@ from typing import List, Tuple
 
 from src.service.generator.type_model_tag_service import TypeModelTagService
 
-
 class LabelGenerator:
     def __init__(self, label_format: str):  # Valor padrão definido
         self.type_model_tag_service = TypeModelTagService()

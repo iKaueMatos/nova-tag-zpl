@@ -1,65 +1,50 @@
-from PIL._tkinter_finder import tk
-from tkinter import messagebox
-from src.service.omie.omie_list_products import OmieListProducts
+import tkinter as tk
+from tkinter import messagebox, ttk
+import webbrowser
 from src.core.database.repositories.credentials_repo import CredentialsRepository
 
-class CredentialsApp:
+class CredentialsScreen:
     def __init__(self, root):
         self.root = root
-        self.root.title("Gerenciar Credenciais da API")
-        self.root.geometry("1440x900")
+        self.window = tk.Toplevel(root)
+        self.window.title("Gerenciar Credenciais da API")
+        self.window.geometry("800x600")
         self.create_widgets()
 
     def create_widgets(self):
-        tk.Label(self.root, text="Empresa:").pack()
-        self.company_entry = tk.Entry(self.root)
-        self.company_entry.pack()
+        frame = ttk.Frame(self.window, padding="10")
+        frame.grid(row=0, column=0, sticky="nsew")
 
-        tk.Label(self.root, text="App Key:").pack()
-        self.app_key_entry = tk.Entry(self.root)
-        self.app_key_entry.pack()
+        self.window.columnconfigure(0, weight=1)
+        self.window.rowconfigure(0, weight=1)
 
-        tk.Label(self.root, text="App Secret:").pack()
-        self.app_secret_entry = tk.Entry(self.root, show="*")
-        self.app_secret_entry.pack()
+        ttk.Label(frame, text="Empresa:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
+        self.company_entry = ttk.Entry(frame)
+        self.company_entry.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
 
-        tk.Label(self.root, text="Client Tax:").pack()
-        self.client_tax_entry = tk.Entry(self.root)
-        self.client_tax_entry.pack()
+        ttk.Label(frame, text="App Key:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
+        self.app_key_entry = ttk.Entry(frame)
+        self.app_key_entry.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
 
-        tk.Label(self.root, text="Tax Scenario:").pack()
-        self.tax_scenario_entry = tk.Entry(self.root)
-        self.tax_scenario_entry.pack()
+        ttk.Label(frame, text="App Secret:").grid(row=2, column=0, sticky="w", padx=5, pady=5)
+        self.app_secret_entry = ttk.Entry(frame, show="*")
+        self.app_secret_entry.grid(row=2, column=1, sticky="ew", padx=5, pady=5)
 
-        tk.Label(self.root, text="Stock Location:").pack()
-        self.stock_location_entry = tk.Entry(self.root)
-        self.stock_location_entry.pack()
-        tk.Button(self.root, text="Salvar", command=self.save_credentials).pack(pady=10)
+        button_frame = ttk.Frame(frame)
+        button_frame.grid(row=6, column=0, columnspan=2, pady=10)
+
+        ttk.Button(button_frame, text="Salvar", command=self.save_credentials).pack(side="left", padx=5)
+
+        link_frame = ttk.Frame(frame)
+        link_frame.grid(row=8, column=0, columnspan=2, pady=10)
+        link_label = ttk.Label(link_frame, text="Clique aqui para obter a chave de acesso para integrações de API", foreground="blue", cursor="hand2")
+        link_label.pack()
+        link_label.bind("<Button-1>", lambda e: webbrowser.open_new("https://ajuda.omie.com.br/pt-BR/articles/499061-obtendo-a-chave-de-acesso-para-integracoes-de-api"))
 
     def save_credentials(self):
         company = self.company_entry.get()
         app_key = self.app_key_entry.get()
         app_secret = self.app_secret_entry.get()
-        client_tax = self.client_tax_entry.get()
-        tax_scenario = self.tax_scenario_entry.get()
-        stock_location = self.stock_location_entry.get()
 
-        CredentialsRepository.insert_credentials(company, app_key, app_secret, client_tax, tax_scenario, stock_location)
+        CredentialsRepository.insert_credentials(company, app_key, app_secret)
         messagebox.showinfo("Sucesso", "Credenciais salvas com sucesso!")
-
-    def fetch_products(self):
-        company = self.company_entry.get()
-        app_key = self.app_key_entry.get()
-        app_secret = self.app_secret_entry.get()
-
-        if not company or not app_key or not app_secret:
-            messagebox.showerror("Erro", "Empresa, App Key e App Secret são obrigatórios.")
-            return
-
-        try:
-            omie_service = OmieListProducts(company)
-            products = omie_service.all()
-            print(products)
-            messagebox.showinfo("Sucesso", "Produtos buscados e salvos com sucesso!")
-        except Exception as e:
-            messagebox.showerror("Erro", f"Falha ao buscar produtos: {e}")

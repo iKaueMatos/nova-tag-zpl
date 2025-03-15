@@ -13,8 +13,10 @@ from src.service.sheet.sheet_importer_service import SheetImporterService
 from src.service.zebra.zebra_labelary_api_service import ZebraLabelaryApiService
 from src.service.zebra.zebra_printer_service import ZebraPrinterService
 from src.utils.dialog_center import DialogCenter
-from src.views.manual.manualScreen.zpl_manual_screen import ZPLManualView
 from src.service.validation.ean_validator import EANValidator
+from src.views.credentials.credentials_screen import CredentialsScreen
+from src.views.printerzpl.zpl_manual_screen import ZPLManualView
+from src.core.database.repositories.printer_repo import PrinterRepository
 
 class BarcodeScreen:
     def __init__(self, root):
@@ -28,7 +30,8 @@ class BarcodeScreen:
         self.manual_eans = []
         self.manual_skus = []
         self.routes = self.load_routes()
-        self.select_all_var = tk.BooleanVar()  # Variável para o checkbox de selecionar todos
+        self.select_all_var = tk.BooleanVar()
+        self.selected_printer_id = None
 
         self.root.columnconfigure(0, weight=1)
         self.root.columnconfigure(1, weight=2)
@@ -38,7 +41,7 @@ class BarcodeScreen:
         self.build_left_panel()
         self.build_right_panel()
         self.bind_shortcuts()
-
+        self.check_existing_printer()
         self.toggle_fields()
 
     def load_routes(self):
@@ -69,6 +72,10 @@ class BarcodeScreen:
         self.menu_bar.add_cascade(label="Ferramentas Adicionais", menu=self.new_screens_menu)
         for screen_name in self.routes['screens']:
             self.new_screens_menu.add_command(label=screen_name, command=lambda name=screen_name: self.open_screen(name))
+
+        self.help_menu = tk.Menu(self.menu_bar, tearoff=0)
+        self.menu_bar.add_cascade(label="Ajuda", menu=self.help_menu)
+        self.help_menu.add_command(label="Atalhos", command=self.show_shortcuts)
 
     def build_left_panel(self):
         self.left_frame = ttk.Frame(self.root, padding=20)
@@ -144,7 +151,7 @@ class BarcodeScreen:
         self.save_button.pack(side="left", expand=True, fill="both")
         self.root.bind("<Control-c>", self.copy_column)
 
-        self.importer = SheetImporterService(self.generator, self.tree, self.code_type)
+        self.importer = SheetImporterService(self.generator, self.tree, self.code_type, self.label_format)
         self.template_download_service = TemplateDownloadService(self.root)
 
     def sort_column(self, col, reverse):
@@ -249,6 +256,14 @@ class BarcodeScreen:
             self.printer_service.set_density(density_value)
             print(f"Densidade ajustada para: {density_value}")
 
+    def check_existing_printer(self):
+        printers = PrinterRepository.list_all_printers()
+        if printers:
+            self.selected_printer = printers[0]['option_printer']
+            self.print_button.config(state=tk.NORMAL)
+        else:
+            self.print_button.config(state=tk.DISABLED)
+
     def select_printer(self):
         printers = self.printer_service.get_printers()
         if not printers:
@@ -261,7 +276,9 @@ class BarcodeScreen:
                 self.selected_printer = selected
                 self.printer_service.set_printer(selected)
                 self.config.save_printer(selected)
+                PrinterRepository.insert_printer(selected)
                 messagebox.showinfo("Sucesso", f"Impressora selecionada: {selected}")
+                self.print_button.config(state=tk.NORMAL)  # Liberar o botão de impressão
                 popup.destroy()
             else:
                 messagebox.showwarning("Aviso", "Selecione uma impressora válida.")
@@ -332,7 +349,6 @@ class BarcodeScreen:
 
         self.zpl_code = None
         self.print_button.config(state=tk.DISABLED)
-        self.select_printer_button.config(state=tk.DISABLED)
         messagebox.showinfo("Sucesso", "Todos os dados foram limpos.")
 
     def add_entry(self):
@@ -460,6 +476,7 @@ class BarcodeScreen:
             messagebox.showinfo("Sucesso", "Código ZPL gerado com sucesso!")
         else:
             messagebox.showerror("Erro", "Falha ao gerar o código ZPL.")
+            self.print_button.config(state=tk.DISABLED)
 
     def save_zpl(self):
         if not self.zpl_code:
@@ -562,8 +579,10 @@ class BarcodeScreen:
         self.tree.bind("<Double-1>", self.on_double_click)
 
     def open_screen(self, screen_name):
-        if screen_name == "Impressão ZPL":
+        if screen_name == "Impressao ZPL":
             ZPLManualView(self.root, self.printer_service, self.zebra_labelary_api_service)
+        elif screen_name == "ERP":
+            CredentialsScreen(self.root)
         else:
             messagebox.showinfo("Info", f"Tela '{screen_name}' não implementada.")
 
@@ -572,3 +591,41 @@ class BarcodeScreen:
             self.select_all_rows()
         else:
             self.tree.selection_remove(self.tree.get_children())
+
+    def show_shortcuts(self):
+        shortcuts = [
+            ("Ctrl+P", "Selecionar Impressora"),
+            ("Ctrl+A", "Selecionar Todos"),
+            ("Ctrl+C", "Copiar Coluna"),
+            ("Enter", "Gerar ZPL"),
+            ("Double Click", "Editar Quantidade"),
+        ]
+
+        functionalities = [
+            ("-Selecionar Impressora", "Permite selecionar a impressora para impressão."),
+            ("-Importar Planilha", "Importa uma planilha com dados de EAN/SKU."),
+            ("-Baixar Template", "Baixa um template de planilha."),
+            ("-Gerar ZPL", "Gera o código ZPL para impressão."),
+            ("-Imprimir", "Envia o código ZPL para a impressora."),
+            ("-Salvar ZPL", "Salva o código ZPL em um arquivo."),
+            ("-Limpar Dados", "Limpa todos os dados inseridos."),
+            ("-Pausar Impressão", "Pausa a impressão cancelando a fila da impressora."),
+            ("-Salvar Impressão", "Salva o código ZPL para impressão posterior."),
+        ]
+
+        popup = tk.Toplevel(self.root)
+        popup.title("Atalhos e Funcionalidades")
+        popup.geometry("600x400")
+        popup.grab_set()
+
+        DialogCenter.center_window(popup)
+
+        tk.Label(popup, text="Atalhos Disponíveis", font=("Arial", 14, "bold")).pack(pady=10)
+        for shortcut, description in shortcuts:
+            tk.Label(popup, text=f"{shortcut}: {description}").pack(anchor="w", padx=20)
+
+        tk.Label(popup, text="Funcionalidades", font=("Arial", 14, "bold")).pack(pady=10)
+        for func, desc in functionalities:
+            tk.Label(popup, text=f"{func}: {desc}").pack(anchor="w", padx=20)
+
+        ttk.Button(popup, text="Fechar", command=popup.destroy).pack(pady=10)
