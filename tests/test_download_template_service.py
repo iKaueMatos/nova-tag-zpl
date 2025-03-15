@@ -1,7 +1,7 @@
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 import tkinter as tk
-from src.service.download_template_service import TemplateDownloadService
+from src.service.sheet.download_template_service import TemplateDownloadService
 
 class TestTemplateDownloadService(unittest.TestCase):
     def setUp(self):

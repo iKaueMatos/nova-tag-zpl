@@ -1,5 +1,5 @@
 import unittest
-from src.service.label_generator_service import LabelGenerator
+from src.service.generator.label_generator_service import LabelGenerator
 
 class TestLabelGenerator(unittest.TestCase):
     def setUp(self):

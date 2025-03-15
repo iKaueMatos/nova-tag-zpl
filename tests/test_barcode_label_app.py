@@ -1,12 +1,12 @@
 import unittest
 from unittest.mock import patch
 import tkinter as tk
-from src.views.barcode.barcode_screen import BarcodeLabelApp
+from src.views.barcode.barcode_screen import BarcodeScreen
 
 class TestBarcodeLabelApp(unittest.TestCase):
     def setUp(self):
         self.root = tk.Tk()
-        self.app = BarcodeLabelApp(self.root)
+        self.app = BarcodeScreen(self.root)
 
     @patch("tkinter.filedialog.askopenfilename")
     def test_import_sheet(self, mock_askopenfilename):

@@ -1,6 +1,5 @@
 import sys
 from cx_Freeze import setup, Executable
-import os
 
 build_exe_options = {
     "packages": ["tkinter", "pandas", "openpyxl", "reportlab", "os", "shutil", "requests", "zebra", "http", "plyer"],
@@ -20,8 +19,8 @@ exe = Executable(
     base=base,
     icon="./nova-software-logo.ico",
     target_name="Nova-software-tag.exe",
-    shortcut_name="Nova Tag",
-    copyright="© 2025 Kauê de Matos && Nova Software",
+    shortcut_name="Nova Software Tag",
+    copyright="©2025 Nova Software",
 )
 
 setup(

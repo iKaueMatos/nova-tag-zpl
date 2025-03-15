@@ -1,20 +1,17 @@
-import customtkinter as ctk
 from tkinter import filedialog, messagebox, simpledialog, scrolledtext
 import tkinter as tk
 from tkinter import ttk
 import math
 from PIL import Image, ImageTk
-import threading
 
 from src.core.config.config import Config
 from src.core.config.enum.label_format_constants import LabelFormatConstants
 from src.models.barcode_label_generator import BarcodeLabelGenerator
-from src.service.download_template_service import TemplateDownloadService
-from src.service.sheet_importer import SheetImporter
-from src.service.zebra_labelary_api_service import ZebraLabelaryApiService
-from src.service.zebra_printer_service import ZebraPrinterService
+from src.service.sheet.download_template_service import TemplateDownloadService
+from src.service.sheet.sheet_importer_service import SheetImporterService
+from src.service.zebra.zebra_labelary_api_service import ZebraLabelaryApiService
+from src.service.zebra.zebra_printer_service import ZebraPrinterService
 from src.views.manual.manualScreen.zpl_manual_screen import ZPLManualView
-
 
 class BarcodeScreen:
     def __init__(self, root):
@@ -91,13 +88,12 @@ class BarcodeScreen:
         self.add_button = ttk.Button(self.left_frame, text="Adicionar", command=self.add_entry)
         self.add_button.grid(row=4, column=2, sticky="e", padx=5, pady=5)
 
-        # Treeview (Tabela)
         tree_frame = ttk.Frame(self.left_frame)
         tree_frame.grid(row=5, column=0, columnspan=3, sticky="nsew", padx=5, pady=5)
-        self.tree = ttk.Treeview(tree_frame, columns=("EAN", "SKU", "Quantidade"), show="headings", height=8)
-        self.tree.heading("EAN", text="EAN")
-        self.tree.heading("SKU", text="SKU")
-        self.tree.heading("Quantidade", text="Quantidade")
+        self.tree = ttk.Treeview(tree_frame, columns=("EAN", "SKU", "Quantidade"), show="headings", height=14)
+        self.tree.heading("EAN", text="EAN", command=lambda: self.sort_column("EAN", False))
+        self.tree.heading("SKU", text="SKU", command=lambda: self.sort_column("SKU", False))
+        self.tree.heading("Quantidade", text="Quantidade", command=lambda: self.sort_column("Quantidade", False))
 
         tree_scroll_y = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
         tree_scroll_x = ttk.Scrollbar(tree_frame, orient="horizontal", command=self.tree.xview)
@@ -128,9 +124,17 @@ class BarcodeScreen:
         self.print_button.pack(side="left", expand=True, fill="both")
         self.save_button = ttk.Button(button_frame2, text="Salvar ZPL", command=self.save_zpl)
         self.save_button.pack(side="left", expand=True, fill="both")
+        self.root.bind("<Control-c>", self.copy_column)
 
-        self.importer = SheetImporter(self.generator, self.tree, self.code_type)
+        self.importer = SheetImporterService(self.generator, self.tree, self.code_type)
         self.template_download_service = TemplateDownloadService(self.root)
+
+    def sort_column(self, col, reverse):
+        data = [(self.tree.set(item, col), item) for item in self.tree.get_children('')]
+        data.sort(reverse=reverse)
+        for index, (val, item) in enumerate(data):
+            self.tree.move(item, '', index)
+        self.tree.heading(col, command=lambda: self.sort_column(col, not reverse))
 
     def build_right_panel(self):
         self.right_frame = ttk.Frame(self.root, padding=20)
@@ -441,3 +445,25 @@ class BarcodeScreen:
 
     def open_zpl_manual(self):
         ZPLManualView(self.root, self.printer_service, self.zebra_labelary_api_service)
+
+    def copy_column(self, event=None):
+        selected_item = self.tree.selection()
+        if not selected_item:
+            return
+
+        item_values = self.tree.item(selected_item[0], "values")
+        column_index = self.tree.identify_column(event.x)
+
+        if column_index == "#1":
+            value = item_values[0]
+        elif column_index == "#2":
+            value = item_values[1]
+        elif column_index == "#3":
+            value = item_values[2]
+        else:
+            return
+
+        self.root.clipboard_clear()
+        self.root.clipboard_append(value)
+        self.root.update()
+        messagebox.showinfo("Copiado!", f"Valor '{value}' copiado para a área de transferência.")

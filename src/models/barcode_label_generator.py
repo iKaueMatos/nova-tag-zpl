@@ -1,4 +1,4 @@
-from src.service.label_generator_service import LabelGenerator
+from src.service.generator.label_generator_service import LabelGenerator
 
 class BarcodeLabelGenerator:
     def __init__(self, label_format="1-Coluna"):

@@ -1,7 +1,7 @@
 import unittest
 from unittest.mock import MagicMock, patch
 import pandas as pd
-from src.service.sheet_importer import SheetImporter
+from src.service.sheet.sheet_importer_service import SheetImporter
 
 class TestSheetImporter(unittest.TestCase):
     def setUp(self):

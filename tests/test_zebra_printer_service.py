@@ -1,6 +1,6 @@
 import unittest
-from unittest.mock import MagicMock, patch
-from src.service.zebra_printer_service import ZebraPrinterService
+from unittest.mock import patch
+from src.service.zebra.zebra_printer_service import ZebraPrinterService
 
 class TestZebraPrinterService(unittest.TestCase):
     def setUp(self):
