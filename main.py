@@ -13,7 +13,7 @@ def main():
         root.iconbitmap("./nova-software-logo.ico")
         root.resizable(True, True)
 
-        root.configure(bg='dark')
+        root.configure(bg='black')
         app = BarcodeScreen(root)
 
         root.bind("<F11>", toggle_fullscreen)

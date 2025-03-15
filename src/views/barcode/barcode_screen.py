@@ -22,6 +22,8 @@ class BarcodeScreen:
         self.zpl_code = None
         self.selected_printer = self.config.load_saved_printer()
         self.zebra_labelary_api_service = ZebraLabelaryApiService()
+        self.manual_eans = []  # Array para armazenar os EANs adicionados manualmente
+        self.manual_skus = []  # Array para armazenar os SKUs adicionados manualmente
 
         self.root.columnconfigure(0, weight=1)
         self.root.columnconfigure(1, weight=2)
@@ -46,6 +48,8 @@ class BarcodeScreen:
         self.config_menu.add_cascade(label="Configurações Avançadas", menu=self.advanced_config_menu)
         self.advanced_config_menu.add_command(label="Ajustar Densidade", command=self.adjust_density)
         self.config_menu.add_command(label="Limpar Fila de Impressão", command=self.clear_print_queue)
+        self.config_menu.add_command(label="Salvar Impressão", command=self.save_print_job)
+        self.config_menu.add_command(label="Pausar Impressão", command=self.pause_print_job)
 
         self.actions_menu = tk.Menu(self.menu_bar, tearoff=0)
         self.menu_bar.add_cascade(label="Ações", menu=self.actions_menu)
@@ -153,6 +157,7 @@ class BarcodeScreen:
         self.root.bind("<Control-a>", self.select_all_rows)
         self.tree.bind("<ButtonRelease-1>", self.on_row_click)
         self.root.bind("<Return>", lambda event: self.generate_zpl())
+        self.tree.bind("<Double-1>", self.on_double_click)
 
     def clear_print_queue(self):
         """Limpa a fila de impressão utilizando o serviço de impressora Zebra."""
@@ -322,11 +327,18 @@ class BarcodeScreen:
             messagebox.showerror("Erro", "Por favor, preencha o campo SKU.")
             return
 
-        eans_existentes = {item[0] for item in self.generator.eans_and_skus}
-        skus_existentes = {item[1] for item in self.generator.eans_and_skus}
+        eans_exits = {item[0] for item in self.generator.eans_and_skus}
+        skus_exist = {item[1] for item in self.generator.eans_and_skus}
 
-        if ean in eans_existentes or sku in skus_existentes:
+        if ean in eans_exits or sku in skus_exist or ean in self.manual_eans or sku in self.manual_skus:
             messagebox.showwarning("Aviso", f"O EAN '{ean}' ou SKU '{sku}' já existem e foram desconsiderados.")
+            for item in self.tree.get_children():
+                item_values = self.tree.item(item, 'values')
+                if item_values[0] == ean or item_values[1] == sku:
+                    self.tree.selection_set(item)
+                    self.tree.focus(item)
+                    self.tree.see(item)
+                    break
             return
 
         if self.code_type.get() == "EAN":
@@ -337,6 +349,8 @@ class BarcodeScreen:
             self.generator.add_ean_sku(int(ean), sku, int(quantity))
 
         self.tree.insert("", tk.END, values=(ean, sku, quantity))
+        self.manual_eans.append(ean)
+        self.manual_skus.append(sku)
 
         self.ean_entry.delete(0, tk.END)
         self.sku_entry.delete(0, tk.END)
@@ -467,3 +481,54 @@ class BarcodeScreen:
         self.root.clipboard_append(value)
         self.root.update()
         messagebox.showinfo("Copiado!", f"Valor '{value}' copiado para a área de transferência.")
+
+    def save_print_job(self):
+        """Salva o código ZPL para impressão posterior"""
+        zpl_data = self.label_text.get("1.0", tk.END).strip()
+        if not zpl_data:
+            messagebox.showerror("Erro", "Nenhum código ZPL para salvar.")
+            return
+
+        file_path = filedialog.asksaveasfilename(defaultextension=".zpl",
+                                                 filetypes=[("Arquivos ZPL", "*.zpl"), ("Todos os arquivos", "*.*")])
+        if file_path:
+            with open(file_path, "w") as file:
+                file.write(zpl_data)
+            messagebox.showinfo("Sucesso", "Código ZPL salvo com sucesso!")
+
+    def pause_print_job(self):
+        """Pausa a impressão cancelando a fila da impressora"""
+        confirm = messagebox.askyesno("Pausar Impressão", "Deseja realmente pausar a impressão?")
+        if confirm:
+            self.printer_service.clear_print_queue()
+            messagebox.showinfo("Pausado", "A impressão foi pausada com sucesso.")
+
+    def on_double_click(self, event):
+        """Permite edição da coluna 'Quantidade' ao dar um duplo clique."""
+        selected_item = self.tree.selection()
+        if not selected_item:
+            return
+
+        item = selected_item[0]
+        column_id = self.tree.identify_column(event.x)
+        column_index = int(column_id[1:]) - 1
+
+        if column_index != 2:
+            return
+
+        x, y, width, height = self.tree.bbox(item, column_index)
+        entry = ttk.Entry(self.tree)
+        entry.place(x=x, y=y, width=width, height=height)
+
+        def save_edit(event):
+            """Salva o novo valor e remove o campo de entrada."""
+            new_value = entry.get().strip()
+            if new_value.isdigit():
+                self.tree.set(item, column="Quantidade", value=new_value)
+            entry.destroy()
+
+        entry.insert(0, self.tree.item(item, "values")[2])
+        entry.focus()
+        entry.bind("<Return>", save_edit)
+        entry.bind("<FocusOut>", lambda e: entry.destroy())
+        self.tree.bind("<Double-1>", self.on_double_click)
