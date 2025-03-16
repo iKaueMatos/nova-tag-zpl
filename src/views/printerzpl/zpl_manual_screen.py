@@ -13,8 +13,10 @@ class ZPLManualView:
         self.parent = parent
 
         self.window = tk.Toplevel(parent)
-        self.window.title("Inserção Manual de Código ZPL")
+        self.window.title("Nova Tag - Inserção Manual de Código ZPL")
         self.window.geometry("1440x900")
+        self.window.geometry("1440x900")
+        self.window.iconbitmap("./nova-software-logo.ico")
         self.window.columnconfigure(0, weight=1)
         self.window.columnconfigure(1, weight=1)
         self.window.rowconfigure(0, weight=1)

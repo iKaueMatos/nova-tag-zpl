@@ -15,7 +15,7 @@ if sys.platform == "win32":
     base = "Win32GUI"
 
 exe = Executable(
-    script="main.py",
+    script="setup_ui.py",
     base=base,
     icon="./nova-software-logo.ico",
     target_name="Nova-software-tag.exe",

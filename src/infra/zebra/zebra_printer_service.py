@@ -21,11 +21,9 @@ class ZebraPrinterService:
         try:
             self.z.output(zpl_data)
             NotificationWindowsLinux.show_notification("Sucesso", "Etiqueta enviada para a impressora com sucesso!")
-            print("Etiqueta enviada para a impressora com sucesso!")
         except Exception as e:
             error_message = f"Erro ao imprimir: {str(e)}"
             NotificationWindowsLinux.show_error_notification(error_message)
-            print(error_message)
 
     def clear_print_queue(self):
         """Força a limpeza da fila de impressão no Windows."""

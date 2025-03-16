@@ -4,7 +4,6 @@ from tkinter import filedialog, messagebox
 
 from src.service.validation.ean_validator import EANValidator
 
-
 class SheetImporterService:
     def __init__(self, generator, tree, code_type, label_format):
         self.generator = generator

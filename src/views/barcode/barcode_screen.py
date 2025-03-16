@@ -1,22 +1,23 @@
-from tkinter import filedialog, messagebox, simpledialog, scrolledtext
+from tkinter import filedialog, messagebox, simpledialog, scrolledtext, PhotoImage
 import tkinter as tk
 from tkinter import ttk
 import math
-from PIL import Image, ImageTk
-import yaml
 
 from src.core.config.config import Config
 from src.core.config.enum.label_format_constants import LabelFormatConstants
-from src.models.barcode_label_generator import BarcodeLabelGenerator
-from src.service.sheet.download_template_service import TemplateDownloadService
-from src.service.sheet.sheet_importer_service import SheetImporterService
-from src.service.zebra.zebra_labelary_api_service import ZebraLabelaryApiService
-from src.service.zebra.zebra_printer_service import ZebraPrinterService
+from src.infra.sheet.download_template_service import TemplateDownloadService
+from src.infra.sheet.sheet_importer_service import SheetImporterService
+from src.infra.zebra.zebra_labelary_api_service import ZebraLabelaryApiService
+from src.infra.zebra.zebra_printer_service import ZebraPrinterService
+from src.models import BarcodeLabelGenerator
+from src.routes.routes_screen import RoutesScreen
 from src.utils.dialog_center import DialogCenter
 from src.service.validation.ean_validator import EANValidator
 from src.views.credentials.credentials_screen import CredentialsScreen
 from src.views.printerzpl.zpl_manual_screen import ZPLManualView
 from src.core.database.repositories.printer_repo import PrinterRepository
+from src.views.product.product_screen import ProductScreen
+from src.views.modal.show_shortcuts import ShowShortcuts
 
 class BarcodeScreen:
     def __init__(self, root):
@@ -24,12 +25,13 @@ class BarcodeScreen:
         self.config = Config()
         self.generator = BarcodeLabelGenerator()
         self.printer_service = ZebraPrinterService()
+        self.routes = RoutesScreen().get_routes()
         self.zpl_code = None
         self.selected_printer = self.config.load_saved_printer()
         self.zebra_labelary_api_service = ZebraLabelaryApiService()
         self.manual_eans = []
         self.manual_skus = []
-        self.routes = self.load_routes()
+
         self.select_all_var = tk.BooleanVar()
         self.selected_printer_id = None
 
@@ -43,10 +45,11 @@ class BarcodeScreen:
         self.bind_shortcuts()
         self.check_existing_printer()
         self.toggle_fields()
+        self.create_context_menu()
 
-    def load_routes(self):
-        with open('routes.yaml', 'r') as file:
-            return yaml.safe_load(file)
+    def create_context_menu(self):
+        self.context_menu = tk.Menu(self.root, tearoff=0)
+        self.context_menu.add_command(label="Editar Quantidade", command=self.edit_quantity)
 
     def build_menu_bar(self):
         self.menu_bar = tk.Menu(self.root)
@@ -68,6 +71,7 @@ class BarcodeScreen:
         self.actions_menu.add_command(label="Importar Planilha", command=self.import_sheet)
         self.actions_menu.add_command(label="Baixar Template", command=self.download_template)
 
+        # Tela dinamica | Routes.yaml
         self.new_screens_menu = tk.Menu(self.menu_bar, tearoff=0)
         self.menu_bar.add_cascade(label="Ferramentas Adicionais", menu=self.new_screens_menu)
         for screen_name in self.routes['screens']:
@@ -75,7 +79,7 @@ class BarcodeScreen:
 
         self.help_menu = tk.Menu(self.menu_bar, tearoff=0)
         self.menu_bar.add_cascade(label="Ajuda", menu=self.help_menu)
-        self.help_menu.add_command(label="Atalhos", command=self.show_shortcuts)
+        self.help_menu.add_command(label="Atalhos", command=lambda: ShowShortcuts.show_shortcuts(self.root))
 
     def build_left_panel(self):
         self.left_frame = ttk.Frame(self.root, padding=20)
@@ -125,6 +129,7 @@ class BarcodeScreen:
         tree_scroll_y.pack(side="right", fill="y")
         tree_scroll_x.pack(side="bottom", fill="x")
         self.tree.pack(expand=True, fill="both")
+        self.tree.bind("<Button-3>", self.show_context_menu)  # Right-click event binding
         self.left_frame.rowconfigure(5, weight=1)
 
         ttk.Label(self.left_frame, text="Código ZPL Gerado:").grid(row=6, column=0, columnspan=3, sticky="w", padx=5,
@@ -173,6 +178,9 @@ class BarcodeScreen:
         self.preview_image_label = ttk.Label(preview_frame)
         self.preview_image_label.pack(expand=True, fill="both", padx=5, pady=5)
 
+        self.pdf_button = ttk.Button(self.right_frame, text="Gerar PDF", compound=tk.LEFT, command=self.generate_pdf, state=tk.DISABLED)
+        self.pdf_button.grid(row=2, column=0, pady=10)
+
     def bind_shortcuts(self):
         self.root.bind("<Control-p>", self.select_printer)
         self.root.bind("<Control-a>", self.select_all_rows)
@@ -183,62 +191,6 @@ class BarcodeScreen:
     def clear_print_queue(self):
         """Limpa a fila de impressão utilizando o serviço de impressora Zebra."""
         self.printer_service.clear_print_queue()
-
-    def update_preview(self):
-        """
-            Gera a imagem a partir do ZPL (via Labelary) e exibe no Label de preview.
-        """
-        if not self.zpl_code:
-            return
-
-        selected_label_format = self.label_format.get()
-        if selected_label_format is None:
-            messagebox.showerror("Erro", "Selecione um formato de etiqueta.")
-            return
-
-        def get_first_zpl_block(zpl_code):
-            if "^XZ" in zpl_code:
-                first_block = zpl_code.split("^XZ")[0] + "^XZ"
-                return first_block
-            return None
-
-        zpl_code_to_send = get_first_zpl_block(self.zpl_code)
-
-        if not zpl_code_to_send:
-            messagebox.showerror("Erro", "Código ZPL inválido ou não encontrado.")
-            return
-
-        if selected_label_format == "2-Colunas":
-            printer_density = LabelFormatConstants.PRINTER_DENSITY_8DPMM
-            label_dimensions = LabelFormatConstants.LABEL_DIMENSIONS_5X25
-            label_index = LabelFormatConstants.LABEL_INDEX_0
-            output_format = LabelFormatConstants.OUTPUT_FORMAT_IMAGE
-
-        if selected_label_format == "1-Coluna":
-            printer_density = LabelFormatConstants.PRINTER_DENSITY_8DPMM
-            label_dimensions = LabelFormatConstants.LABEL_DIMENSIONS_5X25
-            label_index = LabelFormatConstants.LABEL_INDEX_0
-            output_format = LabelFormatConstants.OUTPUT_FORMAT_IMAGE
-
-        image = self.zebra_labelary_api_service.generate_preview_image(
-            zpl_code_to_send,
-            printer_density,
-            label_dimensions,
-            label_index,
-            output_format
-        )
-
-        if image:
-            width, height = image.size
-            new_width = 600
-            new_height = int((new_width / width) * height)
-            image = image.resize((new_width, new_height), Image.LANCZOS)
-
-            self.preview_image_tk = ImageTk.PhotoImage(image)
-            self.preview_image_label.config(image=self.preview_image_tk)
-            self.preview_image_label.image = self.preview_image_tk
-        else:
-            messagebox.showerror("Erro", "Falha ao gerar a pré-visualização da etiqueta.")
 
     def minimize_main_window(self):
         self.root.iconify()
@@ -473,10 +425,12 @@ class BarcodeScreen:
             self.label_text.insert("1.0", self.zpl_code)
             self.label_text.config(state="disabled")
             self.print_button.config(state=tk.NORMAL)
+            self.pdf_button.config(state=tk.NORMAL)
             messagebox.showinfo("Sucesso", "Código ZPL gerado com sucesso!")
         else:
             messagebox.showerror("Erro", "Falha ao gerar o código ZPL.")
             self.print_button.config(state=tk.DISABLED)
+            self.pdf_button.config(state=tk.DISABLED)
 
     def save_zpl(self):
         if not self.zpl_code:
@@ -583,6 +537,9 @@ class BarcodeScreen:
             ZPLManualView(self.root, self.printer_service, self.zebra_labelary_api_service)
         elif screen_name == "ERP":
             CredentialsScreen(self.root)
+        elif screen_name == "Exibir Produtos":
+            product_window = tk.Toplevel(self.root)
+            ProductScreen(product_window, self)
         else:
             messagebox.showinfo("Info", f"Tela '{screen_name}' não implementada.")
 
@@ -592,40 +549,80 @@ class BarcodeScreen:
         else:
             self.tree.selection_remove(self.tree.get_children())
 
-    def show_shortcuts(self):
-        shortcuts = [
-            ("Ctrl+P", "Selecionar Impressora"),
-            ("Ctrl+A", "Selecionar Todos"),
-            ("Ctrl+C", "Copiar Coluna"),
-            ("Enter", "Gerar ZPL"),
-            ("Double Click", "Editar Quantidade"),
-        ]
+    def add_product_to_barcode(self, ean, sku, quantity):
+        self.tree.insert("", tk.END, values=(ean, sku, quantity))
 
-        functionalities = [
-            ("-Selecionar Impressora", "Permite selecionar a impressora para impressão."),
-            ("-Importar Planilha", "Importa uma planilha com dados de EAN/SKU."),
-            ("-Baixar Template", "Baixa um template de planilha."),
-            ("-Gerar ZPL", "Gera o código ZPL para impressão."),
-            ("-Imprimir", "Envia o código ZPL para a impressora."),
-            ("-Salvar ZPL", "Salva o código ZPL em um arquivo."),
-            ("-Limpar Dados", "Limpa todos os dados inseridos."),
-            ("-Pausar Impressão", "Pausa a impressão cancelando a fila da impressora."),
-            ("-Salvar Impressão", "Salva o código ZPL para impressão posterior."),
-        ]
+    def update_preview(self):
+        """
+            Gera a imagem a partir do ZPL (via Labelary) e exibe no Label de preview.
+        """
+        if not self.zpl_code:
+            return
 
-        popup = tk.Toplevel(self.root)
-        popup.title("Atalhos e Funcionalidades")
-        popup.geometry("600x400")
-        popup.grab_set()
+        selected_label_format = self.label_format.get()
+        self.zebra_labelary_api_service.update_preview(self.zpl_code, selected_label_format, self.preview_image_label)
 
-        DialogCenter.center_window(popup)
+    def generate_pdf(self):
+        if not self.zpl_code:
+            messagebox.showerror("Erro", "Nenhum código ZPL gerado. Gere antes de salvar.")
+            return
 
-        tk.Label(popup, text="Atalhos Disponíveis", font=("Arial", 14, "bold")).pack(pady=10)
-        for shortcut, description in shortcuts:
-            tk.Label(popup, text=f"{shortcut}: {description}").pack(anchor="w", padx=20)
+        pdf_data = self.zebra_labelary_api_service.generate_pdf(
+            self.zpl_code,
+            LabelFormatConstants.PRINTER_DENSITY_8DPMM,
+            LabelFormatConstants.LABEL_DIMENSIONS_5X25,
+            LabelFormatConstants.LABEL_INDEX_0
+        )
 
-        tk.Label(popup, text="Funcionalidades", font=("Arial", 14, "bold")).pack(pady=10)
-        for func, desc in functionalities:
-            tk.Label(popup, text=f"{func}: {desc}").pack(anchor="w", padx=20)
+        if pdf_data:
+            file_path = filedialog.asksaveasfilename(defaultextension=".pdf",
+                                                     filetypes=[("Arquivo PDF", "*.pdf")])
+            if file_path:
+                with open(file_path, "wb") as f:
+                    f.write(pdf_data)
+                messagebox.showinfo("Sucesso", f"Arquivo PDF salvo em: {file_path}")
+        else:
+            messagebox.showerror("Erro", "Falha ao gerar o PDF da etiqueta.")
 
-        ttk.Button(popup, text="Fechar", command=popup.destroy).pack(pady=10)
+    def show_context_menu(self, event):
+        selected_item = self.tree.identify_row(event.y)
+        if selected_item:
+            self.tree.selection_set(selected_item)
+            self.context_menu.post(event.x_root, event.y_root)
+
+    def edit_quantity(self):
+        selected_item = self.tree.selection()
+        if not selected_item:
+            return
+
+        item = selected_item[0]
+        current_quantity = self.tree.item(item, "values")[2]
+
+        self.quantity_window = tk.Toplevel(self.root)
+        self.quantity_window.title("Editar Quantidade")
+        self.quantity_window.geometry("400x200")
+        self.quantity_window.grab_set()
+
+        label = tk.Label(self.quantity_window, text="Insira a nova quantidade:")
+        label.pack(pady=10)
+
+        self.entry = tk.Entry(self.quantity_window)
+        self.entry.insert(0, str(current_quantity))
+        self.entry.pack(pady=5)
+
+        button_frame = tk.Frame(self.quantity_window)
+        button_frame.pack(pady=10)
+
+        ok_button = tk.Button(button_frame, text="OK", command=lambda: self.set_quantity(item))
+        cancel_button = tk.Button(button_frame, text="Cancelar", command=self.quantity_window.destroy)
+        
+        ok_button.pack(side="left", padx=10)
+        cancel_button.pack(side="right", padx=10)
+
+    def set_quantity(self, item):
+        new_quantity = self.entry.get().strip()
+        if new_quantity.isdigit():
+            self.tree.set(item, column="Quantidade", value=new_quantity)
+            self.quantity_window.destroy()
+        else:
+            messagebox.showerror("Erro", "Quantidade inválida. Por favor, insira um número válido.")
