@@ -3,14 +3,14 @@ from src.core.database.database import Database
 
 class CredentialsRepository:
     @staticmethod
-    def insert_credentials(company, app_key, app_secret, client_tax, tax_scenario, stock_location):
+    def insert_credentials(company, app_key, app_secret):
         conn = Database.connect()
         cursor = conn.cursor()
 
         cursor.execute("""
-        INSERT INTO api_credentials (company, app_key, app_secret, client_tax, tax_scenario, stock_location)
-        VALUES (?, ?, ?, ?, ?, ?)
-        """, (company, app_key, app_secret, client_tax, tax_scenario, stock_location))
+        INSERT INTO api_credentials (company, app_key, app_secret)
+        VALUES (?, ?, ?)
+        """, (company, app_key, app_secret))
 
         conn.commit()
         conn.close()
@@ -100,3 +100,17 @@ class CredentialsRepository:
             }
             for row in result
         ]
+
+    @staticmethod
+    def credentials_exist(company):
+        conn = Database.connect()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+        SELECT 1 FROM api_credentials WHERE company = ?
+        """, (company,))
+
+        result = cursor.fetchone()
+        conn.close()
+
+        return result is not None

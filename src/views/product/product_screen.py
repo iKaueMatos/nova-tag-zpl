@@ -1,28 +1,23 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
+import ttkbootstrap as tb
+from src.core.database.repositories.product_repo import ProductRepository
 
 class ProductScreen:
     def __init__(self, parent, barcode_screen):
         self.parent = parent
         self.barcode_screen = barcode_screen
 
-        self.window = tk.Toplevel(parent)
+        self.window = tb.Toplevel(parent, size=(1440, 900))
         self.window.title("Nova Tag - Produtos")
-        self.window.geometry("1440x900")
         self.window.iconbitmap("./nova-software-logo.ico")
         self.window.resizable(True, True)
-        self.window.columnconfigure(0, weight=1)
-        self.window.columnconfigure(1, weight=1)
-        self.window.rowconfigure(0, weight=1)
+        self.window.protocol("WM_DELETE_WINDOW", self.on_close)
 
         self.build_menu_bar()
         self.build_layout()
         self.minimize_main_window()
-
-    def on_close(self):
-        """Reexibe a janela principal ao fechar a secundária"""
-        self.parent.deiconify()
-        self.window.destroy()
+        self.load_products()
 
     def build_menu_bar(self):
         self.menu_bar = tk.Menu(self.window)
@@ -30,82 +25,79 @@ class ProductScreen:
 
         self.config_menu = tk.Menu(self.menu_bar, tearoff=0)
         self.menu_bar.add_cascade(label="Configurações", menu=self.config_menu)
-        self.config_menu.add_command(label="Adicionar Produto", command=self.add_product)
-        self.config_menu.add_command(label="Limpar Lista", command=self.clear_product_list)
+        self.config_menu.add_command(label="Alternar Tema", command=self.toggle_theme)
 
     def build_layout(self):
         main_frame = ttk.Frame(self.window, padding=10)
-        main_frame.grid(row=0, column=0, sticky="nsew")
+        main_frame.pack(fill='both', expand=True)
 
+        # Lista de produtos
         self.tree = ttk.Treeview(main_frame, columns=("Nome", "Categoria", "EAN", "SKU", "Preço"), show="headings")
-        self.tree.heading("Nome", text="Nome")
-        self.tree.heading("Categoria", text="Categoria")
-        self.tree.heading("EAN", text="EAN")
-        self.tree.heading("SKU", text="SKU")
-        self.tree.heading("Preço", text="Preço")
-        self.tree.grid(row=0, column=0, sticky="nsew")
+        for col in ("Nome", "Categoria", "EAN", "SKU", "Preço"):
+            self.tree.heading(col, text=col, anchor="center")
+            self.tree.column(col, width=200, anchor="center")
+        self.tree.pack(fill='both', expand=True, side='left')
 
         scrollbar = ttk.Scrollbar(main_frame, orient=tk.VERTICAL, command=self.tree.yview)
         self.tree.configure(yscroll=scrollbar.set)
-        scrollbar.grid(row=0, column=1, sticky="ns")
+        scrollbar.pack(side='right', fill='y')
 
-        button_frame = ttk.Frame(main_frame, padding=10)
-        button_frame.grid(row=1, column=0, columnspan=2, sticky="ew")
+        button_frame = ttk.Frame(self.window, padding=10)
+        button_frame.pack(fill='x')
 
-        self.add_button = ttk.Button(button_frame, text="Adicionar Produto", command=self.add_product)
-        self.add_button.pack(side="left", padx=5)
+        self.add_to_barcode_button = ttk.Button(button_frame, text="Adicionar ao Barcode", command=self.add_to_barcode, width=20)
+        self.add_to_barcode_button.pack(side="left", padx=5)
 
-        self.clear_button = ttk.Button(button_frame, text="Limpar Lista", command=self.clear_product_list)
-        self.clear_button.pack(side="left", padx=5)
+        self.search_entry = ttk.Entry(button_frame, width=30)
+        self.search_entry.pack(side="right", padx=5)
+        self.search_entry.insert(0, "Buscar Produto...")
+        self.search_entry.bind("<KeyRelease>", self.search_product)
 
-        self.add_sample_data()
-
-        main_frame.rowconfigure(0, weight=1)
-        main_frame.columnconfigure(0, weight=1)
-
-    def add_sample_data(self):
-        products = [
-            ("Produto 1", "Categoria A", "1234567890123", "SKU001", "$10.00"),
-            ("Produto 2", "Categoria B", "2345678901234", "SKU002", "$20.00"),
-            ("Produto 3", "Categoria C", "3456789012345", "SKU003", "$30.00"),
-        ]
+    def load_products(self):
+        products = ProductRepository.list_all_products()
         for product in products:
-            self.tree.insert("", tk.END, values=product)
+            self.tree.insert("", tk.END, values=(product['product_description'], "Categoria", product['product_ean'], product['product_sku'], f"R$ {product['product_price']}"))
 
-    def add_product(self):
-        name = simpledialog.askstring("Adicionar Produto", "Nome do Produto:")
-        if not name:
+    def add_to_barcode(self):
+        selected_items = self.tree.selection()
+        if not selected_items:
+            messagebox.showwarning("Aviso", "Nenhum produto selecionado.")
             return
 
-        category = simpledialog.askstring("Adicionar Produto", "Categoria:")
-        if not category:
-            return
+        for item in selected_items:
+            item_values = self.tree.item(item, "values")
+            ean, sku = item_values[2], item_values[3]
+            quantity = simpledialog.askinteger("Quantidade", f"Insira a quantidade de etiquetas para {item_values[0]}:",
+                                               minvalue=1)
+            if quantity:
+                self.barcode_screen.add_product_to_barcode(ean, sku, quantity)
 
-        ean = simpledialog.askstring("Adicionar Produto", "EAN:")
-        if not ean:
-            return
+        messagebox.showinfo("Sucesso", "Produtos adicionados ao Barcode com sucesso!")
 
-        sku = simpledialog.askstring("Adicionar Produto", "SKU:")
-        if not sku:
-            return
-
-        price = simpledialog.askstring("Adicionar Produto", "Preço:")
-        if not price:
-            return
-
-        self.tree.insert("", tk.END, values=(name, category, ean, sku, price))
-        messagebox.showinfo("Sucesso", "Produto adicionado com sucesso!")
-
-    def clear_product_list(self):
+    def search_product(self, event):
+        query = self.search_entry.get().lower()
         for item in self.tree.get_children():
-            self.tree.delete(item)
-        messagebox.showinfo("Sucesso", "Lista de produtos limpa.")
+            item_values = self.tree.item(item, "values")
+            match = any(query in str(value).lower() for value in item_values)
+            self.tree.item(item, tags=("match" if match else "nomatch"))
+        self.tree.tag_configure("match", background="white")
+        self.tree.tag_configure("nomatch", background="#d3d3d3")
+
+    def toggle_theme(self):
+        self.theme = "darkly" if self.theme == "flatly" else "flatly"
+        self.style.theme_use(self.theme)
 
     def minimize_main_window(self):
         self.parent.iconify()
-        self.window.protocol("WM_DELETE_WINDOW", self.on_close)
+
+    def on_close(self):
+        if self.parent and isinstance(self.parent, tk.Tk):
+            self.parent.deiconify()
+        self.window.destroy()
+
 
 if __name__ == "__main__":
     root = tk.Tk()
+    root.withdraw()
     app = ProductScreen(root, None)
     root.mainloop()

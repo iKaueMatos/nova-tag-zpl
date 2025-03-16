@@ -551,6 +551,8 @@ class BarcodeScreen:
 
     def add_product_to_barcode(self, ean, sku, quantity):
         self.tree.insert("", tk.END, values=(ean, sku, quantity))
+        self.manual_eans.append(ean)
+        self.manual_skus.append(sku)
 
     def update_preview(self):
         """

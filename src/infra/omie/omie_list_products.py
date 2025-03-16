@@ -4,7 +4,7 @@ class OmieListProducts:
     def __init__(self, company):
         self.company = company
         self.path = "general/products/"
-        self.call = 'ListProducts'
+        self.call = 'ListarProdutos'
         self.page = 1
         self.records_per_page = 50
         self.only_imported_api = 'N'
@@ -17,6 +17,8 @@ class OmieListProducts:
         omie_list_name = "product_service_registration"
         self.records_per_page = 500
         query = self.execute(console=console)
+        if 'total_pages' not in query:
+            raise KeyError("The response does not contain 'total_pages'. Please check the API response.")
         total_pages = query['total_pages']
         list_data = query[omie_list_name]
         while self.page < total_pages:

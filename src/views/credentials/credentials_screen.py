@@ -1,7 +1,11 @@
 import tkinter as tk
 from tkinter import messagebox, ttk
 import webbrowser
+import threading
 from src.core.database.repositories.credentials_repo import CredentialsRepository
+from src.infra.omie.omie_list_products import OmieListProducts
+from src.core.database.repositories.product_repo import ProductRepository
+from src.views.product.product_screen import ProductScreen
 
 class CredentialsScreen:
     def __init__(self, root):
@@ -10,6 +14,7 @@ class CredentialsScreen:
         self.window.title("Gerenciar Credenciais da API")
         self.window.geometry("800x600")
         self.create_widgets()
+        self.load_credentials()
 
     def create_widgets(self):
         frame = ttk.Frame(self.window, padding="10")
@@ -30,16 +35,42 @@ class CredentialsScreen:
         self.app_secret_entry = ttk.Entry(frame, show="*")
         self.app_secret_entry.grid(row=2, column=1, sticky="ew", padx=5, pady=5)
 
-        button_frame = ttk.Frame(frame)
-        button_frame.grid(row=6, column=0, columnspan=2, pady=10)
+        self.button_frame = ttk.Frame(frame)
+        self.button_frame.grid(row=6, column=0, columnspan=2, pady=10)
 
-        ttk.Button(button_frame, text="Salvar", command=self.save_credentials).pack(side="left", padx=5)
+        self.save_button = ttk.Button(self.button_frame, text="Salvar", command=self.save_credentials)
+        self.save_button.pack(side="left", padx=5)
+
+        self.edit_button = ttk.Button(self.button_frame, text="Editar", command=self.enable_editing, state=tk.DISABLED)
+        self.edit_button.pack(side="left", padx=5)
 
         link_frame = ttk.Frame(frame)
         link_frame.grid(row=8, column=0, columnspan=2, pady=10)
         link_label = ttk.Label(link_frame, text="Clique aqui para obter a chave de acesso para integrações de API", foreground="blue", cursor="hand2")
         link_label.pack()
         link_label.bind("<Button-1>", lambda e: webbrowser.open_new("https://ajuda.omie.com.br/pt-BR/articles/499061-obtendo-a-chave-de-acesso-para-integracoes-de-api"))
+
+    def load_credentials(self):
+        company = self.company_entry.get()
+        credentials = CredentialsRepository.get_credentials(company)
+        if credentials:
+            self.app_key_entry.insert(0, credentials['app_key'])
+            self.app_secret_entry.insert(0, credentials['app_secret'])
+            self.disable_editing()
+
+    def disable_editing(self):
+        self.company_entry.config(state="disabled")
+        self.app_key_entry.config(state="disabled")
+        self.app_secret_entry.config(state="disabled")
+        self.save_button.config(state="disabled")
+        self.edit_button.config(state="normal")
+
+    def enable_editing(self):
+        self.company_entry.config(state="normal")
+        self.app_key_entry.config(state="normal")
+        self.app_secret_entry.config(state="normal")
+        self.save_button.config(state="normal")
+        self.edit_button.config(state="disabled")
 
     def save_credentials(self):
         company = self.company_entry.get()
@@ -48,3 +79,26 @@ class CredentialsScreen:
 
         CredentialsRepository.insert_credentials(company, app_key, app_secret)
         messagebox.showinfo("Sucesso", "Credenciais salvas com sucesso!")
+        threading.Thread(target=self.fetch_and_save_products, args=(company,), daemon=True).start()
+
+    def fetch_and_save_products(self, company):
+        try:
+            omie_products = OmieListProducts(company).all()
+            for product in omie_products:
+                ProductRepository.insert_product(
+                    product['product_code'],
+                    product['product_description'],
+                    product['product_ean'],
+                    product['product_sku'],
+                    product['product_price']
+                )
+            messagebox.showinfo("Sucesso", "Produtos importados e salvos com sucesso!")
+            self.render_products()
+        except KeyError as e:
+            messagebox.showerror("Erro", f"Erro ao importar produtos: {e}")
+        except Exception as e:
+            messagebox.showerror("Erro", f"Ocorreu um erro: {e}")
+
+    def render_products(self):
+        product_window = tk.Toplevel(self.root)
+        ProductScreen(product_window, self.root)

@@ -27,6 +27,14 @@ class Database:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 option_printer TEXT NOT NULL        
             );
+
+            CREATE TABLE IF NOT EXISTS products (
+                product_code TEXT PRIMARY KEY,
+                product_description TEXT,
+                product_ean TEXT,
+                product_sku TEXT,
+                product_price REAL
+            );
         """)
 
         conn.commit()
