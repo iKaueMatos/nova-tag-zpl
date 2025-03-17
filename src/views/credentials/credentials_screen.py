@@ -1,3 +1,4 @@
+import sys
 import tkinter as tk
 from tkinter import messagebox, ttk
 import webbrowser
@@ -13,6 +14,18 @@ class CredentialsScreen:
         self.window = tk.Toplevel(root)
         self.window.title("Gerenciar Credenciais da API")
         self.window.geometry("800x600")
+
+        if sys.platform.startswith("win"):
+            try:
+                self.window.iconbitmap("./nova-software-logo.ico")
+            except Exception as e:
+                print(f"Erro ao carregar ícone no Windows: {e}")
+        elif sys.platform.startswith("linux"):
+            try:
+                self.window.iconbitmap("@./nova-software-logo.png")
+            except Exception as e:
+                print(f"Erro ao carregar ícone no Linux: {e}")
+
         self.create_widgets()
         self.load_credentials()
 
@@ -86,11 +99,11 @@ class CredentialsScreen:
             omie_products = OmieListProducts(company).all()
             for product in omie_products:
                 ProductRepository.insert_product(
-                    product['product_code'],
-                    product['product_description'],
-                    product['product_ean'],
-                    product['product_sku'],
-                    product['product_price']
+                    product['codInt_familia'],
+                    product['descricao'],
+                    product['ean'],
+                    product['codigo'],
+                    0 if product['preco'] == 0 else product['preco']
                 )
             messagebox.showinfo("Sucesso", "Produtos importados e salvos com sucesso!")
             self.render_products()

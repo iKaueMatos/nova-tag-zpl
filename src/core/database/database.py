@@ -1,7 +1,7 @@
 import sqlite3
 
 class Database:
-    DB_NAME = "nova-tag.db"
+    DB_NAME = "nova.db"
 
     @staticmethod
     def connect():

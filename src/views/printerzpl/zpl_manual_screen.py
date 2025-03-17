@@ -1,8 +1,10 @@
+import sys
 import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox, simpledialog, filedialog
 from PIL import Image, ImageTk
 import io
 
+from src.core.database.repositories.printer_repo import PrinterRepository
 from src.utils.dialog_center import DialogCenter
 
 
@@ -15,14 +17,25 @@ class ZPLManualView:
         self.window = tk.Toplevel(parent)
         self.window.title("Nova Tag - Inserção Manual de Código ZPL")
         self.window.geometry("1440x900")
-        self.window.geometry("1440x900")
-        self.window.iconbitmap("./nova-software-logo.ico")
+
+        if sys.platform.startswith("win"):
+            try:
+                self.window.iconbitmap("./nova-software-logo.ico")
+            except Exception as e:
+                print(f"Erro ao carregar ícone no Windows: {e}")
+        elif sys.platform.startswith("linux"):
+            try:
+                self.window.iconbitmap("@./nova-software-logo.png")
+            except Exception as e:
+                print(f"Erro ao carregar ícone no Linux: {e}")
+
         self.window.columnconfigure(0, weight=1)
         self.window.columnconfigure(1, weight=1)
         self.window.rowconfigure(0, weight=1)
         self.build_menu_bar()
         self.build_layout()
         self.minimize_main_window()
+        self.check_existing_printer()
 
     def on_close(self):
         """Reexibe a janela principal ao fechar a secundária"""
@@ -171,3 +184,11 @@ class ZPLManualView:
     def is_valid_zpl(self, content):
         """Verifica se o conteúdo do arquivo é um código ZPL válido."""
         return "^XA" in content and "^XZ" in content
+
+    def check_existing_printer(self):
+        printers = PrinterRepository.list_all_printers()
+        if printers:
+            self.selected_printer = printers[0]['option_printer']
+            self.print_button.config(state=tk.NORMAL)
+        else:
+            self.print_button.config(state=tk.DISABLED)

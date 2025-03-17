@@ -1,3 +1,4 @@
+import sys
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
 import ttkbootstrap as tb
@@ -10,7 +11,18 @@ class ProductScreen:
 
         self.window = tb.Toplevel(parent, size=(1440, 900))
         self.window.title("Nova Tag - Produtos")
-        self.window.iconbitmap("./nova-software-logo.ico")
+
+        if sys.platform.startswith("win"):
+            try:
+                self.window.iconbitmap("./nova-software-logo.ico")
+            except Exception as e:
+                print(f"Erro ao carregar ícone no Windows: {e}")
+        elif sys.platform.startswith("linux"):
+            try:
+                self.window.iconbitmap("@./nova-software-logo.xbm")
+            except Exception as e:
+                print(f"Erro ao carregar ícone no Linux: {e}")
+
         self.window.resizable(True, True)
         self.window.protocol("WM_DELETE_WINDOW", self.on_close)
 

@@ -8,6 +8,7 @@ from PIL import Image, ImageTk
 from src.core.database.database import Database
 from src.views.barcode.barcode_screen import BarcodeScreen
 import datetime
+import sys
 
 def get_greeting():
     current_hour = datetime.datetime.now().hour
@@ -73,7 +74,18 @@ def main():
 
     root.title("Nova Tag")
     root.geometry("1440x900")
-    root.iconbitmap("./nova-software-logo.ico")
+
+    if sys.platform.startswith("win"):
+        try:
+            root.iconbitmap("./nova-software-logo.ico")
+        except Exception as e:
+            print(f"Erro ao carregar ícone no Windows: {e}")
+    elif sys.platform.startswith("linux"):
+        try:
+            root.iconbitmap("@./nova-software-logo.xbm")
+        except Exception as e:
+            print(f"Erro ao carregar ícone no Linux: {e}")
+
     root.resizable(True, True)
 
     is_dark_mode = True
@@ -99,14 +111,11 @@ def main():
     create_tray_icon()
     root.mainloop()
 
-
 def toggle_fullscreen(event=None):
     root.attributes('-fullscreen', not root.attributes('-fullscreen'))
 
-
 def exit_fullscreen(event=None):
     root.attributes('-fullscreen', False)
-
 
 def toggle_theme(event=None):
     global is_dark_mode
@@ -114,26 +123,31 @@ def toggle_theme(event=None):
     new_theme = "darkly" if is_dark_mode else "flatly"
     root.style.theme_use(new_theme)
 
-
 def exit_application(event=None):
     if messagebox.askokcancel("Sair", "Tem certeza que deseja sair?", icon="warning"):
         tray_icon.stop()
         root.quit()
 
-
 def minimize_to_tray():
     root.withdraw()
     tray_icon.visible = True
-
 
 def restore_from_tray(icon, item):
     root.deiconify()
     tray_icon.visible = False
 
-
 def create_tray_icon():
     global tray_icon
-    image = Image.open("./nova-software-logo.ico")
+
+    try:
+        if sys.platform.startswith("win"):
+            image = Image.open("./nova-software-logo.ico")
+        else:
+            image = Image.open("./nova-software-logo.png")
+    except Exception as e:
+        print(f"Erro ao carregar imagem do ícone da bandeja: {e}")
+        image = Image.new("RGB", (64, 64), color="gray")
+
     menu = (item('Restaurar', restore_from_tray), item('Sair', exit_application))
     tray_icon = Icon("Nova Tag", image, menu=menu)
 
@@ -143,10 +157,8 @@ def create_tray_icon():
     from threading import Thread
     Thread(target=run_tray, daemon=True).start()
 
-
 def on_close():
     minimize_to_tray()
-
 
 if __name__ == "__main__":
     main()

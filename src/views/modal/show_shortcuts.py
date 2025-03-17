@@ -1,3 +1,4 @@
+import sys
 import tkinter as tk
 from tkinter import ttk
 
@@ -29,6 +30,18 @@ class ShowShortcuts:
         popup = tk.Toplevel(root)
         popup.title("Atalhos e Funcionalidades")
         popup.geometry("600x400")
+
+        if sys.platform.startswith("win"):
+            try:
+                popup.iconbitmap("./nova-software-logo.ico")
+            except Exception as e:
+                print(f"Erro ao carregar ícone no Windows: {e}")
+        elif sys.platform.startswith("linux"):
+            try:
+                popup.iconbitmap("@./nova-software-logo.xbm")
+            except Exception as e:
+                print(f"Erro ao carregar ícone no Linux: {e}")
+
         popup.grab_set()
 
         DialogCenter.center_window(popup)

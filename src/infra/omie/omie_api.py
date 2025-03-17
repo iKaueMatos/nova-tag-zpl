@@ -1,19 +1,17 @@
 import os
 import requests
-from dotenv import load_dotenv
 
 class OmieApi:
     def __init__(self, company=""):
         self.path = ""
         self.call = ""
-        load_dotenv()
         self.company = company
 
     def execute(self, method, company, console=False):
         self.company = company
         method_json = self._convert_to_json(method)
         params = method_json.copy()
-        params.pop('path')
+        params.pop('endpoint')
         params.pop('call')
         params.pop('company')
 
@@ -23,7 +21,7 @@ class OmieApi:
             'call': method_json['call'],
             'param': [params]
         }
-        response = requests.post(f'https://app.omie.com.br/api/v1/{method_json["path"]}', json=json_data)
+        response = requests.post(f'https://app.omie.com.br/api/v1/{method_json["endpoint"]}', json=json_data)
         if console:
             print(response.json())
         return response.json()
