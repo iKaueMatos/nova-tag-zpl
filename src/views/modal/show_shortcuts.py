@@ -12,7 +12,8 @@ class ShowShortcuts:
             ("Ctrl+A", "Selecionar Todos"),
             ("Ctrl+C", "Copiar Coluna"),
             ("Enter", "Gerar ZPL"),
-            ("Double Click", "Editar Quantidade"),
+            ("Botão Direito", "Editar Quantidade"),
+            ("Botão Direito", "Remover Item"),
         ]
 
         functionalities = [
@@ -29,7 +30,8 @@ class ShowShortcuts:
 
         popup = tk.Toplevel(root)
         popup.title("Atalhos e Funcionalidades")
-        popup.geometry("600x400")
+        popup.geometry("600x420")
+        popup.resizable(True, True)
 
         if sys.platform.startswith("win"):
             try:
@@ -38,7 +40,7 @@ class ShowShortcuts:
                 print(f"Erro ao carregar ícone no Windows: {e}")
         elif sys.platform.startswith("linux"):
             try:
-                popup.iconbitmap("@./nova-software-logo.xbm")
+                popup.iconbitmap("./nova-software-logo.png")
             except Exception as e:
                 print(f"Erro ao carregar ícone no Linux: {e}")
 

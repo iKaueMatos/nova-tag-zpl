@@ -2,7 +2,7 @@ import sys
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
 import ttkbootstrap as tb
-from src.core.database.repositories.product_repo import ProductRepository
+from src.infra.repositories.product_repo import ProductRepository
 
 class ProductScreen:
     def __init__(self, parent, barcode_screen):

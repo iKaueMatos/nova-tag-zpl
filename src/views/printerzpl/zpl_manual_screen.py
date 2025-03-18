@@ -4,7 +4,7 @@ from tkinter import ttk, scrolledtext, messagebox, simpledialog, filedialog
 from PIL import Image, ImageTk
 import io
 
-from src.core.database.repositories.printer_repo import PrinterRepository
+from src.infra.repositories.printer_repo import PrinterRepository
 from src.utils.dialog_center import DialogCenter
 
 

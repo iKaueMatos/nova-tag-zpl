@@ -1,68 +1,10 @@
-import threading
-import time
 import ttkbootstrap as tb
 from tkinter import messagebox
-from tkinter import ttk
 from pystray import MenuItem as item, Icon
 from PIL import Image, ImageTk
 from src.core.database.database import Database
 from src.views.barcode.barcode_screen import BarcodeScreen
-import datetime
 import sys
-
-def get_greeting():
-    current_hour = datetime.datetime.now().hour
-    if current_hour < 12:
-        return "Bom dia"
-    elif current_hour < 18:
-        return "Boa tarde"
-    else:
-        return "Boa noite"
-
-def show_loading_screen():
-    splash = tb.Toplevel()
-    splash.overrideredirect(True)
-    splash.update_idletasks()
-
-    screen_width = splash.winfo_screenwidth()
-    screen_height = splash.winfo_screenheight()
-    width, height = 600, 300
-    x = (screen_width - width) // 2
-    y = (screen_height - height) // 2
-    splash.geometry(f"{width}x{height}+{x}+{y}")
-    splash.configure(bg="#222222")
-
-    greeting = get_greeting()
-
-    greeting_label = tb.Label(splash, text=greeting, font=("Helvetica", 16, "bold"), style="Heading.TLabel")
-    greeting_label.pack(pady=20)
-
-    progress_bar = ttk.Progressbar(splash, orient="horizontal", length=300, mode="indeterminate", style="TProgressbar")
-    progress_bar.pack(pady=15)
-    progress_bar.start(10)
-
-    info_label = tb.Label(splash, text="Carregando recursos importantes...", font=("Arial", 12), style="Logo.TLabel")
-    info_label.pack(side="bottom", pady=10)
-
-    resources = [
-        "Leitura e geração de códigos de barras",
-        "Gestão de inventário de produtos",
-        "Relatórios de vendas e estoque",
-        "Integração com sistemas de gestão"
-    ]
-
-    def load_resources():
-        for resource in resources:
-            info_label.config(text=f"Carregando: {resource}")
-            splash.update()
-            time.sleep(2)
-
-        splash.update()
-        time.sleep(5)
-        splash.destroy()
-
-    loading_thread = threading.Thread(target=load_resources, daemon=True)
-    loading_thread.start()
 
 def main():
     global root, is_dark_mode, theme_button, tray_icon
@@ -70,10 +12,8 @@ def main():
     root = tb.Window(themename="cosmo")
     root.style.configure("Logo.TLabel", background="#222", font=("Arial", 12), foreground="#EEE")
 
-    show_loading_screen()
-
     root.title("Nova Tag")
-    root.geometry("1440x900")
+    root.geometry("1460x900")
 
     if sys.platform.startswith("win"):
         try:
@@ -82,7 +22,7 @@ def main():
             print(f"Erro ao carregar ícone no Windows: {e}")
     elif sys.platform.startswith("linux"):
         try:
-            root.iconbitmap("@./nova-software-logo.xbm")
+            root.iconbitmap("./nova-software-logo.png")
         except Exception as e:
             print(f"Erro ao carregar ícone no Linux: {e}")
 

@@ -7,7 +7,7 @@ class LabelGenerator:
         self.type_model_tag_service = TypeModelTagService()
         self.label_format = label_format
 
-    def generate_zpl(self, eans_and_skus: List[Tuple[str, str, int]], label_format: str = None) -> str:
+    def generate_zpl(self, eans_and_skus: List[Tuple[str, str, int, str, str, str, str]], label_format: str = None) -> str:
         label_format = label_format or self.label_format
 
         if not label_format:
@@ -23,10 +23,10 @@ class LabelGenerator:
 
         return label_generators[label_format](eans_and_skus)
 
-    def generate_zpl_2_columns(self, eans_and_skus: List[Tuple[str, str, int]]) -> str:
+    def generate_zpl_2_columns(self, eans_and_skus: List[Tuple[str, str, int, str, str, str]]) -> str:
         zpl = []
 
-        for ean, sku, quantity in eans_and_skus:
+        for ean, sku, quantity, description, code, size in eans_and_skus:
             adjusted_quantity = quantity if quantity % 2 == 0 else quantity + 1
 
             for _ in range(adjusted_quantity // 2):
@@ -34,28 +34,35 @@ class LabelGenerator:
                 zpl.append("^PW800")
                 zpl.append("^LL200")
 
-                if sku and ean:
-                    self.type_model_tag_service.append_both_label(zpl, ean, sku)
-                elif sku:
-                    self.type_model_tag_service.generate_code_128(zpl, sku, self.label_format)
+                if sku and description:
+                    self.type_model_tag_service.generate_code_128_full(zpl, code, sku, description, size, self.label_format)
+                if ean and sku:
+                    self.type_model_tag_service.append_both_label(zpl, ean, sku, description)
                 elif ean:
-                    self.type_model_tag_service.generate_ean(zpl, ean, self.label_format)
+                    self.type_model_tag_service.generate_ean(zpl, ean, description)
+                elif sku:
+                    self.type_model_tag_service.generate_code_128(zpl, sku, description, self.label_format)
 
                 zpl.append("^XZ")
         return "\n".join(zpl)
 
-    def generate_zpl_1_column(self, eans_and_skus: List[Tuple[str, str, int]]) -> str:
+    def generate_zpl_1_column(self, eans_and_skus: List[Tuple[str, str, int, str, str, str]]) -> str:
         zpl = []
-        for ean, sku, quantity in eans_and_skus:
+        for ean, sku, quantity, description, size, code in eans_and_skus:
             for _ in range(quantity):
                 zpl.append("^XA^CI28")
                 zpl.append("^PW800")
                 zpl.append("^LL300")
 
-                if ean:
+                if sku and description:
+                    self.type_model_tag_service.generate_code_128_full(zpl, code, sku, description, size, self.label_format)
+                if ean and sku:
+                    self.type_model_tag_service.append_both_label(zpl, ean, sku)
+                elif ean:
                     self.type_model_tag_service.generate_ean(zpl, ean, self.label_format)
-                if sku:
-                    self.type_model_tag_service.generate_code_128(zpl, sku, self.label_format)
+                elif sku:
+                    self.type_model_tag_service.generate_code_128(zpl, sku, description, self.label_format)
+
                 zpl.append("^XZ")
 
         zpl = [item for item in zpl if item is not None]

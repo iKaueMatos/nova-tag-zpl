@@ -1,9 +1,4 @@
-import os
-import sqlite3
-
 import requests
-from datetime import date
-from dotenv import load_dotenv
 from .omie_alter_price_item import OmieAlterPriceItem
 from .omie_alter_product import OmieAlterProduct
 from .omie_consult_client import OmieConsultClient
@@ -23,7 +18,7 @@ from .omie_list_price_table_items import OmieListPriceTableItems
 from .omie_list_price_tables import OmieListPriceTables
 from .omie_list_sellers import OmieListSellers
 from .omie_get_attachment import OmieGetAttachment
-from src.core.database.repositories.credentials_repo import CredentialsRepository
+from src.infra.repositories.credentials_repo import CredentialsRepository
 
 
 class Omie:

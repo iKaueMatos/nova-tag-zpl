@@ -1,4 +1,4 @@
-from tkinter import filedialog, messagebox, simpledialog, scrolledtext, PhotoImage
+from tkinter import filedialog, messagebox, simpledialog, scrolledtext
 import tkinter as tk
 from tkinter import ttk
 import math
@@ -15,7 +15,7 @@ from src.utils.dialog_center import DialogCenter
 from src.service.validation.ean_validator import EANValidator
 from src.views.credentials.credentials_screen import CredentialsScreen
 from src.views.printerzpl.zpl_manual_screen import ZPLManualView
-from src.core.database.repositories.printer_repo import PrinterRepository
+from src.infra.repositories.printer_repo import PrinterRepository
 from src.views.product.product_screen import ProductScreen
 from src.views.modal.show_shortcuts import ShowShortcuts
 
@@ -50,6 +50,7 @@ class BarcodeScreen:
     def create_context_menu(self):
         self.context_menu = tk.Menu(self.root, tearoff=0)
         self.context_menu.add_command(label="Editar Quantidade", command=self.edit_quantity)
+        self.context_menu.add_command(label="Remover Item", command=self.remove_selected)
 
     def build_menu_bar(self):
         self.menu_bar = tk.Menu(self.root)
@@ -89,7 +90,7 @@ class BarcodeScreen:
         ttk.Label(self.left_frame, text="Tipo de Código:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
         self.code_type = tk.StringVar(value="EAN")
         self.code_type_combobox = ttk.Combobox(self.left_frame, textvariable=self.code_type, state="readonly")
-        self.code_type_combobox['values'] = ("EAN", "SKU", "Ambos")
+        self.code_type_combobox['values'] = ("EAN", "SKU", "Ambos(EAN e SKU)", "Full Mercado Livre")
         self.code_type_combobox.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
         self.code_type_combobox.bind("<<ComboboxSelected>>", self.toggle_fields)
 
@@ -100,7 +101,7 @@ class BarcodeScreen:
         self.format_combobox['values'] = ("1-Coluna", "2-Colunas")
         self.format_combobox.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
 
-        # EAN / SKU / Quantidade
+        # EAN / SKU / Quantidade / Descrição
         ttk.Label(self.left_frame, text="EAN:").grid(row=2, column=0, sticky="w", padx=5, pady=5)
         self.ean_entry = ttk.Entry(self.left_frame)
         self.ean_entry.grid(row=2, column=1, sticky="ew", padx=5, pady=5)
@@ -109,19 +110,25 @@ class BarcodeScreen:
         self.sku_entry = ttk.Entry(self.left_frame)
         self.sku_entry.grid(row=3, column=1, sticky="ew", padx=5, pady=5)
 
-        ttk.Label(self.left_frame, text="Quantidade:").grid(row=4, column=0, sticky="w", padx=5, pady=5)
+        ttk.Label(self.left_frame, text="Descrição:").grid(row=4, column=0, sticky="w", padx=5, pady=5)
+        self.description_entry = ttk.Entry(self.left_frame, width=10)
+        self.description_entry.grid(row=4, column=1, sticky="ew", padx=5, pady=5)
+
+        ttk.Label(self.left_frame, text="Quantidade:").grid(row=5, column=0, sticky="w", padx=5, pady=5)
         self.quantity_entry = ttk.Entry(self.left_frame, width=10)
-        self.quantity_entry.grid(row=4, column=1, sticky="ew", padx=5, pady=5)
+        self.quantity_entry.grid(row=5, column=1, sticky="ew", padx=5, pady=5)
 
         self.add_button = ttk.Button(self.left_frame, text="Adicionar", command=self.add_entry)
-        self.add_button.grid(row=4, column=2, sticky="e", padx=5, pady=5)
+        self.add_button.grid(row=5, column=2, sticky="e", padx=5, pady=5)
 
         tree_frame = ttk.Frame(self.left_frame)
-        tree_frame.grid(row=5, column=0, columnspan=3, sticky="nsew", padx=5, pady=5)
-        self.tree = ttk.Treeview(tree_frame, columns=("EAN", "SKU", "Quantidade"), show="headings", height=14)
+        tree_frame.grid(row=6, column=0, columnspan=3, sticky="nsew", padx=5, pady=5)
+        self.tree = ttk.Treeview(tree_frame, columns=("EAN", "SKU", "Quantidade", "Descrição"), show="headings",
+                                 height=14)
         self.tree.heading("EAN", text="EAN", command=lambda: self.sort_column("EAN", False))
         self.tree.heading("SKU", text="SKU", command=lambda: self.sort_column("SKU", False))
         self.tree.heading("Quantidade", text="Quantidade", command=lambda: self.sort_column("Quantidade", False))
+        self.tree.heading("Descrição", text="Descrição", command=lambda: self.sort_column("Descrição", False))
 
         tree_scroll_y = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
         tree_scroll_x = ttk.Scrollbar(tree_frame, orient="horizontal", command=self.tree.xview)
@@ -129,27 +136,28 @@ class BarcodeScreen:
         tree_scroll_y.pack(side="right", fill="y")
         tree_scroll_x.pack(side="bottom", fill="x")
         self.tree.pack(expand=True, fill="both")
-        self.tree.bind("<Button-3>", self.show_context_menu)  # Right-click event binding
-        self.left_frame.rowconfigure(5, weight=1)
+        self.tree.bind("<Button-3>", self.show_context_menu)
+        self.left_frame.rowconfigure(6, weight=1)
 
-        ttk.Label(self.left_frame, text="Código ZPL Gerado:").grid(row=6, column=0, columnspan=3, sticky="w", padx=5,
+        ttk.Label(self.left_frame, text="Código ZPL Gerado:").grid(row=7, column=0, columnspan=3, sticky="w", padx=5,
                                                                    pady=5)
         self.label_text = scrolledtext.ScrolledText(self.left_frame, width=50, height=10, state=tk.DISABLED)
-        self.label_text.grid(row=7, column=0, columnspan=3, sticky="nsew", padx=5, pady=5)
-        self.left_frame.rowconfigure(7, weight=1)
+        self.label_text.grid(row=8, column=0, columnspan=3, sticky="nsew", padx=5, pady=5)
+        self.left_frame.rowconfigure(8, weight=1)
 
-        self.select_all_checkbox = ttk.Checkbutton(self.left_frame, text="Selecionar Todos", variable=self.select_all_var, command=self.toggle_select_all)
-        self.select_all_checkbox.grid(row=8, column=0, columnspan=3, sticky="w", padx=5, pady=5)
+        self.select_all_checkbox = ttk.Checkbutton(self.left_frame, text="Selecionar Todos",
+                                                   variable=self.select_all_var, command=self.toggle_select_all)
+        self.select_all_checkbox.grid(row=9, column=0, columnspan=3, sticky="w", padx=5, pady=5)
 
         button_frame1 = ttk.Frame(self.left_frame)
-        button_frame1.grid(row=9, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
+        button_frame1.grid(row=10, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
         self.generate_button = ttk.Button(button_frame1, text="Gerar ZPL", command=self.generate_zpl)
         self.generate_button.pack(side="left", expand=True, fill="both")
         self.clear_button = ttk.Button(button_frame1, text="Limpar Dados", command=self.clear_data)
         self.clear_button.pack(side="left", expand=True, fill="both")
 
         button_frame2 = ttk.Frame(self.left_frame)
-        button_frame2.grid(row=10, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
+        button_frame2.grid(row=11, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
         self.print_button = ttk.Button(button_frame2, text="Imprimir", command=self.print_label, state=tk.DISABLED)
         self.print_button.pack(side="left", expand=True, fill="both")
         self.save_button = ttk.Button(button_frame2, text="Salvar ZPL", command=self.save_zpl)
@@ -274,21 +282,22 @@ class BarcodeScreen:
         if self.code_type.get() == "EAN":
             self.ean_entry.config(state="normal")
             self.sku_entry.config(state="disabled")
+            self.description_entry.config(state="disabled")
         elif self.code_type.get() == "SKU":
             self.sku_entry.config(state="normal")
             self.ean_entry.config(state="disabled")
-        elif self.code_type.get() == "Ambos":
+            self.description_entry.config(state="disabled")
+        elif self.code_type.get() == "Ambos(EAN e SKU)":
             self.ean_entry.config(state="normal")
             self.sku_entry.config(state="normal")
-        elif self.code_type.get() == "Code128":
-            self.ean_entry.config(state="disabled")
-            self.sku_entry.config(state="normal")
-        elif self.code_type.get() == "EAN":
-            self.ean_entry.config(state="disabled")
-            self.sku_entry.config(state="normal")
+            self.description_entry.config(state="disabled")
         elif self.code_type.get() == "QRCode":
             self.ean_entry.config(state="disabled")
             self.sku_entry.config(state="normal")
+        elif self.code_type.get() == "Full Mercado Livre":
+            self.sku_entry.config(state="normal")
+            self.description_entry.config(state="normal")
+            self.ean_entry.config(state="disabled")
 
     def clear_data(self):
         if self.tree.get_children():
@@ -306,7 +315,8 @@ class BarcodeScreen:
     def add_entry(self):
         ean = self.ean_entry.get().strip()
         sku = self.sku_entry.get().strip()
-        quantity = self.quantity_entry.get().strip()
+        quantity = self.quantity_entry.get()
+        description = self.description_entry.get().strip()
 
         if not quantity.isdigit():
             messagebox.showerror("Erro", "Quantidade inválida.")
@@ -338,19 +348,22 @@ class BarcodeScreen:
             return
 
         if self.code_type.get() == "EAN":
-            self.generator.add_ean_sku(int(ean), "", int(quantity))
+            self.generator.add_ean_sku(int(ean), "", int(quantity), "")
         if self.code_type.get() == "SKU":
-            self.generator.add_ean_sku("", sku, int(quantity))
-        if self.code_type.get() == "Ambos":
-            self.generator.add_ean_sku(int(ean), sku, int(quantity))
+            self.generator.add_ean_sku("", sku, int(quantity), "")
+        if self.code_type.get() == "Ambos(EAN e SKU)":
+            self.generator.add_ean_sku(int(ean), sku, int(quantity), "")
+        if self.code_type.get() == "Full Mercado Livre":
+            self.generator.add_ean_sku("", sku, int(quantity), description)
 
-        self.tree.insert("", tk.END, values=(ean, sku, quantity))
+        self.tree.insert("", tk.END, values=(ean, sku, quantity, description))
         self.manual_eans.append(ean)
         self.manual_skus.append(sku)
 
         self.ean_entry.delete(0, tk.END)
         self.sku_entry.delete(0, tk.END)
         self.quantity_entry.delete(0, tk.END)
+        self.description_entry.delete(0, tk.END)
 
     def calculate_quantity_to_send(self, total_quantity, columns):
         if columns == 2:
@@ -366,6 +379,7 @@ class BarcodeScreen:
         self.template_download_service.download_template()
 
     def generate_zpl(self):
+        global label_format
         selected_items = self.tree.selection()
 
         if not selected_items:
@@ -378,7 +392,7 @@ class BarcodeScreen:
         for item in selected_items:
             item_values = self.tree.item(item, 'values')
 
-            ean, sku, quantity_str = item_values
+            ean, sku, quantity_str, description = item_values
 
             if not quantity_str.isdigit():
                 messagebox.showwarning("Aviso", f"Quantidade inválida na linha: {item_values}. Ignorando.")
@@ -400,7 +414,7 @@ class BarcodeScreen:
                 columns = 4
 
             adjusted_quantity = self.calculate_quantity_to_send(quantity, columns)
-            labels_data.append((ean, sku, adjusted_quantity))
+            labels_data.append((ean, sku, adjusted_quantity, description))
 
         if not labels_data:
             messagebox.showerror("Erro", "Nenhum dado válido para gerar etiquetas.")
@@ -408,13 +422,13 @@ class BarcodeScreen:
 
         self.generator.eans_and_skus.clear()
 
-        for ean, sku, quantity in labels_data:
+        for ean, sku, quantity, description in labels_data:
             if selected_type == "EAN":
-                self.generator.add_ean_sku(ean, "", quantity)
+                self.generator.add_ean_sku(ean, "", quantity, "")
             elif selected_type == "SKU":
-                self.generator.add_ean_sku("", sku, quantity)
+                self.generator.add_ean_sku("", sku, quantity, "")
             else:
-                self.generator.add_ean_sku(ean, sku, quantity)
+                self.generator.add_ean_sku(ean, sku, quantity, description)
 
         self.generator.set_label_format(label_format)
         self.zpl_code = self.generator.generate_zpl()
@@ -628,3 +642,32 @@ class BarcodeScreen:
             self.quantity_window.destroy()
         else:
             messagebox.showerror("Erro", "Quantidade inválida. Por favor, insira um número válido.")
+            
+    def remove_selected(self):
+        selected_item = self.tree.selection()
+        if not selected_item:
+            return
+
+        item = selected_item[0]
+
+        self.remove_window = tk.Toplevel(self.root)
+        self.remove_window.title("Remover Item")
+        self.remove_window.geometry("400x200")
+        self.remove_window.grab_set()
+        DialogCenter.center_window(self.remove_window)
+
+        label = tk.Label(self.remove_window, text="Tem certeza que deseja remover este item?")
+        label.pack(pady=10)
+
+        button_frame = tk.Frame(self.remove_window)
+        button_frame.pack(pady=10)
+
+        ok_button = tk.Button(button_frame, text="Remover", command=lambda: self.confirm_removal(item))
+        cancel_button = tk.Button(button_frame, text="Cancelar", command=self.remove_window.destroy)
+
+        ok_button.pack(side="left", padx=10)
+        cancel_button.pack(side="right", padx=10)
+
+    def confirm_removal(self, item):
+        self.tree.delete(item)
+        self.remove_window.destroy()

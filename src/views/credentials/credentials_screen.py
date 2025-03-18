@@ -3,9 +3,9 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 import webbrowser
 import threading
-from src.core.database.repositories.credentials_repo import CredentialsRepository
+from src.infra.repositories.credentials_repo import CredentialsRepository
 from src.infra.omie.omie_list_products import OmieListProducts
-from src.core.database.repositories.product_repo import ProductRepository
+from src.infra.repositories.product_repo import ProductRepository
 from src.views.product.product_screen import ProductScreen
 
 class CredentialsScreen:

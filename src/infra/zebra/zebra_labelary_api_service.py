@@ -21,7 +21,7 @@ class ZebraLabelaryApiService:
 
             url = f"{LabelFormatConstants.BASE_URL}/{printer_density}/labels/{label_dimensions}/{label_index}"
 
-            files = {'file': zpl_code}
+            files = {'file': zpl_code.encode('utf-8')}
             headers = {'Accept': output_format}
 
             response = requests.post(url, files=files, headers=headers)
@@ -51,7 +51,7 @@ class ZebraLabelaryApiService:
 
             url = f"{LabelFormatConstants.BASE_URL}/{printer_density}/labels/{label_dimensions}/{label_index}"
 
-            files = {'file': zpl_code}
+            files = {'file': zpl_code.encode('utf-8')}
             headers = {'Accept': 'application/pdf'}
 
             response = requests.post(url, files=files, headers=headers)
