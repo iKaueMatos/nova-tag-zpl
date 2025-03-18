@@ -16,7 +16,7 @@ class ZPLManualView:
 
         self.window = tk.Toplevel(parent)
         self.window.title("Nova Tag - Inserção Manual de Código ZPL")
-        self.window.geometry("1440x900")
+        self.window.geometry("1440x1000")
 
         if sys.platform.startswith("win"):
             try:
@@ -124,9 +124,10 @@ class ZPLManualView:
         """Permite ao usuário ajustar a densidade de impressão através de uma caixa de entrada."""
         density_value = simpledialog.askinteger("Ajustar Densidade", "Escolha a densidade de 0 a 30:",
                                                 minvalue=0, maxvalue=30, initialvalue=self.printer_service.density)
+        DialogCenter.center_window(density_value)
         if density_value is not None:
             self.printer_service.set_density(density_value)
-            print(f"Densidade ajustada para: {density_value}")
+            messagebox.OK
 
     def select_printer(self):
         printers = self.printer_service.get_printers()

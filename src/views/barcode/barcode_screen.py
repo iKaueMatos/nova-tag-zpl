@@ -31,6 +31,7 @@ class BarcodeScreen:
         self.zebra_labelary_api_service = ZebraLabelaryApiService()
         self.manual_eans = []
         self.manual_skus = []
+        self.manual_code_product = []
 
         self.select_all_var = tk.BooleanVar()
         self.selected_printer_id = None
@@ -83,52 +84,61 @@ class BarcodeScreen:
         self.help_menu.add_command(label="Atalhos", command=lambda: ShowShortcuts.show_shortcuts(self.root))
 
     def build_left_panel(self):
-        self.left_frame = ttk.Frame(self.root, padding=20)
+        self.left_frame = ttk.Frame(self.root, padding=10)
         self.left_frame.grid(row=0, column=0, sticky="nsew")
 
-        # Tipo de Código
-        ttk.Label(self.left_frame, text="Tipo de Código:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
+        ttk.Label(self.left_frame, text="Tipo de Código:").grid(row=0, column=0, sticky="w", padx=1, pady=1)
         self.code_type = tk.StringVar(value="EAN")
-        self.code_type_combobox = ttk.Combobox(self.left_frame, textvariable=self.code_type, state="readonly")
-        self.code_type_combobox['values'] = ("EAN", "SKU", "Ambos(EAN e SKU)", "Full Mercado Livre")
-        self.code_type_combobox.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
+        self.code_type_combobox = ttk.Combobox(self.left_frame, textvariable=self.code_type, state="readonly", width=15)
+        self.code_type_combobox['values'] = ("EAN", "SKU", "Ambos(EAN e SKU)", "Full Mercado Livre",)
+        self.code_type_combobox.grid(row=0, column=1, sticky="ew", padx=2, pady=1)
         self.code_type_combobox.bind("<<ComboboxSelected>>", self.toggle_fields)
 
-        # Formato da Etiqueta
-        ttk.Label(self.left_frame, text="Formato da Etiqueta:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
+        ttk.Label(self.left_frame, text="Formato da Etiqueta:").grid(row=1, column=0, sticky="w", padx=1, pady=1)
         self.label_format = tk.StringVar(value="1-Coluna")
-        self.format_combobox = ttk.Combobox(self.left_frame, textvariable=self.label_format, state="readonly")
+        self.format_combobox = ttk.Combobox(self.left_frame, textvariable=self.label_format, state="readonly", width=15)
         self.format_combobox['values'] = ("1-Coluna", "2-Colunas")
-        self.format_combobox.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
+        self.format_combobox.grid(row=1, column=1, sticky="ew", padx=2, pady=1)
 
-        # EAN / SKU / Quantidade / Descrição
-        ttk.Label(self.left_frame, text="EAN:").grid(row=2, column=0, sticky="w", padx=5, pady=5)
-        self.ean_entry = ttk.Entry(self.left_frame)
-        self.ean_entry.grid(row=2, column=1, sticky="ew", padx=5, pady=5)
+        entry_frame = ttk.Frame(self.left_frame)
+        entry_frame.grid(row=2, column=0, columnspan=2, sticky="ew", padx=5, pady=5)
 
-        ttk.Label(self.left_frame, text="SKU:").grid(row=3, column=0, sticky="w", padx=5, pady=5)
-        self.sku_entry = ttk.Entry(self.left_frame)
-        self.sku_entry.grid(row=3, column=1, sticky="ew", padx=5, pady=5)
+        ttk.Label(entry_frame, text="EAN:").grid(row=0, column=0, sticky="w", padx=5, pady=5)
+        self.ean_entry = ttk.Entry(entry_frame, width=30)
+        self.ean_entry.grid(row=0, column=1, sticky="ew", padx=5, pady=5)
 
-        ttk.Label(self.left_frame, text="Descrição:").grid(row=4, column=0, sticky="w", padx=5, pady=5)
-        self.description_entry = ttk.Entry(self.left_frame, width=10)
-        self.description_entry.grid(row=4, column=1, sticky="ew", padx=5, pady=5)
+        ttk.Label(entry_frame, text="SKU:").grid(row=0, column=2, sticky="w", padx=5, pady=5)
+        self.sku_entry = ttk.Entry(entry_frame, width=30)
+        self.sku_entry.grid(row=0, column=3, sticky="ew", padx=5, pady=5)
 
-        ttk.Label(self.left_frame, text="Quantidade:").grid(row=5, column=0, sticky="w", padx=5, pady=5)
-        self.quantity_entry = ttk.Entry(self.left_frame, width=10)
-        self.quantity_entry.grid(row=5, column=1, sticky="ew", padx=5, pady=5)
+        ttk.Label(entry_frame, text="Descrição:").grid(row=1, column=0, sticky="w", padx=5, pady=5)
+        self.description_entry = ttk.Entry(entry_frame, width=30)
+        self.description_entry.grid(row=1, column=1, sticky="ew", padx=5, pady=5)
+
+        ttk.Label(entry_frame, text="Código:").grid(row=1, column=2, sticky="w", padx=5, pady=5)
+        self.code_product_entry = ttk.Entry(entry_frame, width=30)
+        self.code_product_entry.grid(row=1, column=3, sticky="ew", padx=5, pady=5)
+
+        ttk.Label(entry_frame, text="Tamanho:").grid(row=2, column=0, sticky="w", padx=5, pady=5)
+        self.size_entry = ttk.Entry(entry_frame, width=30)
+        self.size_entry.grid(row=2, column=1, sticky="ew", padx=5, pady=5)
+
+        ttk.Label(entry_frame, text="Quantidade:").grid(row=2, column=2, sticky="w", padx=5, pady=5)
+        self.quantity_entry = ttk.Entry(entry_frame, width=30)
+        self.quantity_entry.grid(row=2, column=3, sticky="ew", padx=5, pady=5)
 
         self.add_button = ttk.Button(self.left_frame, text="Adicionar", command=self.add_entry)
-        self.add_button.grid(row=5, column=2, sticky="e", padx=5, pady=5)
+        self.add_button.grid(row=3, column=1, sticky="e", padx=4, pady=4)
 
         tree_frame = ttk.Frame(self.left_frame)
-        tree_frame.grid(row=6, column=0, columnspan=3, sticky="nsew", padx=5, pady=5)
-        self.tree = ttk.Treeview(tree_frame, columns=("EAN", "SKU", "Quantidade", "Descrição"), show="headings",
-                                 height=14)
+        tree_frame.grid(row=4, column=0, columnspan=3, sticky="nsew", padx=5, pady=5)
+        self.tree = ttk.Treeview(tree_frame, columns=("EAN", "SKU", "Quantidade", "Descrição", "Código", "Tamanho"), show="headings", height=14)
         self.tree.heading("EAN", text="EAN", command=lambda: self.sort_column("EAN", False))
         self.tree.heading("SKU", text="SKU", command=lambda: self.sort_column("SKU", False))
         self.tree.heading("Quantidade", text="Quantidade", command=lambda: self.sort_column("Quantidade", False))
         self.tree.heading("Descrição", text="Descrição", command=lambda: self.sort_column("Descrição", False))
+        self.tree.heading("Código", text="Código", command=lambda: self.sort_column("Código", False))
+        self.tree.heading("Tamanho", text="Tamanho", command=lambda: self.sort_column("Tamanho", False))
 
         tree_scroll_y = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
         tree_scroll_x = ttk.Scrollbar(tree_frame, orient="horizontal", command=self.tree.xview)
@@ -137,35 +147,106 @@ class BarcodeScreen:
         tree_scroll_x.pack(side="bottom", fill="x")
         self.tree.pack(expand=True, fill="both")
         self.tree.bind("<Button-3>", self.show_context_menu)
-        self.left_frame.rowconfigure(6, weight=1)
+        self.left_frame.rowconfigure(4, weight=1)
 
-        ttk.Label(self.left_frame, text="Código ZPL Gerado:").grid(row=7, column=0, columnspan=3, sticky="w", padx=5,
+        ttk.Label(self.left_frame, text="Código ZPL Gerado:").grid(row=5, column=0, columnspan=3, sticky="w", padx=5,
                                                                    pady=5)
         self.label_text = scrolledtext.ScrolledText(self.left_frame, width=50, height=10, state=tk.DISABLED)
-        self.label_text.grid(row=8, column=0, columnspan=3, sticky="nsew", padx=5, pady=5)
-        self.left_frame.rowconfigure(8, weight=1)
+        self.label_text.grid(row=6, column=0, columnspan=3, sticky="nsew", padx=5, pady=5)
+        self.left_frame.rowconfigure(6, weight=1)
 
-        self.select_all_checkbox = ttk.Checkbutton(self.left_frame, text="Selecionar Todos",
+        self.select_all_checkbox = ttk.Checkbutton(self.left_frame, text="Selecionar Todos \n informações da tabela",
                                                    variable=self.select_all_var, command=self.toggle_select_all)
-        self.select_all_checkbox.grid(row=9, column=0, columnspan=3, sticky="w", padx=5, pady=5)
+        self.select_all_checkbox.grid(row=7, column=0, columnspan=3, sticky="w", padx=5, pady=5)
 
-        button_frame1 = ttk.Frame(self.left_frame)
-        button_frame1.grid(row=10, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
-        self.generate_button = ttk.Button(button_frame1, text="Gerar ZPL", command=self.generate_zpl)
-        self.generate_button.pack(side="left", expand=True, fill="both")
-        self.clear_button = ttk.Button(button_frame1, text="Limpar Dados", command=self.clear_data)
-        self.clear_button.pack(side="left", expand=True, fill="both")
+        button_frame = ttk.Frame(self.left_frame)
+        button_frame.grid(row=8, column=0, columnspan=3, padx=5, pady=5)
 
-        button_frame2 = ttk.Frame(self.left_frame)
-        button_frame2.grid(row=11, column=0, columnspan=3, sticky="ew", padx=5, pady=5)
-        self.print_button = ttk.Button(button_frame2, text="Imprimir", command=self.print_label, state=tk.DISABLED)
-        self.print_button.pack(side="left", expand=True, fill="both")
-        self.save_button = ttk.Button(button_frame2, text="Salvar ZPL", command=self.save_zpl)
-        self.save_button.pack(side="left", expand=True, fill="both")
+        self.generate_button = ttk.Button(button_frame, text="Gerar ZPL", command=self.generate_zpl)
+        self.generate_button.pack(side="left", expand=True, fill="both", padx=3)
+
+        self.clear_button = ttk.Button(button_frame, text="Limpar Dados", command=self.clear_data)
+        self.clear_button.pack(side="left", expand=True, fill="both", padx=3)
+
+        self.print_button = ttk.Button(button_frame, text="Imprimir", command=self.print_label, state=tk.DISABLED)
+        self.print_button.pack(side="left", expand=True, fill="both", padx=3)
+
+        self.save_button = ttk.Button(button_frame, text="Salvar ZPL", command=self.save_zpl)
+        self.save_button.pack(side="left", expand=True, fill="both", padx=3)
+
         self.root.bind("<Control-c>", self.copy_column)
 
         self.importer = SheetImporterService(self.generator, self.tree, self.code_type, self.label_format)
         self.template_download_service = TemplateDownloadService(self.root)
+
+    def toggle_fields(self, event=None):
+        disabled_bg = "#d9d9d9"
+        normal_bg = "white"
+
+        if self.code_type.get() == "EAN":
+            self.ean_entry.config(state="normal", background=normal_bg)
+            self.sku_entry.config(state="disabled", background=disabled_bg)
+            self.description_entry.config(state="disabled", background=disabled_bg)
+            self.code_product_entry.config(state="disabled", background=disabled_bg)
+            self.size_entry.config(state="disabled", background=disabled_bg)
+
+            self.set_tooltip(self.sku_entry, "Campo desativado para EAN")
+            self.set_tooltip(self.description_entry, "Campo desativado para EAN")
+            self.set_tooltip(self.size_entry, "Campo desativado para QRCode")
+            self.set_tooltip(self.code_product_entry, "Campo desativado para QRCode")
+
+        elif self.code_type.get() == "SKU":
+            self.sku_entry.config(state="normal", background=normal_bg)
+            self.ean_entry.config(state="disabled", background=disabled_bg)
+            self.description_entry.config(state="disabled", background=disabled_bg)
+            self.code_product_entry.config(state="disabled", background=disabled_bg)
+            self.size_entry.config(state="disabled", background=disabled_bg)
+
+            self.set_tooltip(self.ean_entry, "Campo desativado para SKU")
+            self.set_tooltip(self.description_entry, "Campo desativado para SKU")
+            self.set_tooltip(self.code_product_entry, "Campo desativado para SKU")
+            self.set_tooltip(self.size_entry, "Campo desativado para SKU")
+
+        elif self.code_type.get() == "Ambos(EAN e SKU)":
+            self.ean_entry.config(state="normal", background=normal_bg)
+            self.sku_entry.config(state="normal", background=normal_bg)
+            self.description_entry.config(state="disabled", background=disabled_bg)
+            self.code_product_entry.config(state="disabled", background=disabled_bg)
+            self.size_entry.config(state="disabled", background=disabled_bg)
+
+            self.set_tooltip(self.description_entry, "Campo desativado para Ambos")
+            self.set_tooltip(self.size_entry, "Campo desativado para QRCode")
+            self.set_tooltip(self.code_product_entry, "Campo desativado para QRCode")
+            self.set_tooltip(self.description_entry, "Campo desativado para QRCode")
+
+        elif self.code_type.get() == "Full Mercado Livre":
+            self.sku_entry.config(state="normal", background=normal_bg)
+            self.description_entry.config(state="normal", background=normal_bg)
+            self.code_product_entry.config(state="normal", background=normal_bg)
+            self.size_entry.config(state="normal", background=normal_bg)
+            self.ean_entry.config(state="disabled", background=disabled_bg)
+
+            self.set_tooltip(self.ean_entry, "Campo desativado para Full Mercado Livre")
+            self.set_tooltip(self.size_entry, "Tamanho do produto(ex: P,M,G,GG)")
+            self.set_tooltip(self.code_product_entry, "Código da etiqueta do mercado livre")
+            self.set_tooltip(self.description_entry, "Mini descrição do produto")
+            self.set_tooltip(self.sku_entry, "Sku da variação do produto")
+
+    def set_tooltip(self, widget, text):
+        def on_enter(event):
+            self.tooltip = tk.Toplevel(widget)
+            self.tooltip.overrideredirect(True)
+            self.tooltip.geometry(f"+{widget.winfo_rootx() + 20}+{widget.winfo_rooty() + 20}")
+            label = tk.Label(self.tooltip, text=text, background="yellow", relief="solid", borderwidth=1, padx=5,
+                             pady=2)
+            label.pack()
+
+        def on_leave(event):
+            if hasattr(self, "tooltip"):
+                self.tooltip.destroy()
+
+        widget.bind("<Enter>", on_enter)
+        widget.bind("<Leave>", on_leave)
 
     def sort_column(self, col, reverse):
         data = [(self.tree.set(item, col), item) for item in self.tree.get_children('')]
@@ -195,6 +276,8 @@ class BarcodeScreen:
         self.tree.bind("<ButtonRelease-1>", self.on_row_click)
         self.root.bind("<Return>", lambda event: self.generate_zpl())
         self.tree.bind("<Double-1>", self.on_double_click)
+        self.label_text.bind("<Button-1>", self.copy_zpl)
+        self.root.bind("<Button-1>", self.deselect_on_click_outside)
 
     def clear_print_queue(self):
         """Limpa a fila de impressão utilizando o serviço de impressora Zebra."""
@@ -278,27 +361,6 @@ class BarcodeScreen:
         self.printer_service.print_label(zpl_data)
         messagebox.showinfo("Sucesso", "Etiqueta enviada para a impressora.")
 
-    def toggle_fields(self, event=None):
-        if self.code_type.get() == "EAN":
-            self.ean_entry.config(state="normal")
-            self.sku_entry.config(state="disabled")
-            self.description_entry.config(state="disabled")
-        elif self.code_type.get() == "SKU":
-            self.sku_entry.config(state="normal")
-            self.ean_entry.config(state="disabled")
-            self.description_entry.config(state="disabled")
-        elif self.code_type.get() == "Ambos(EAN e SKU)":
-            self.ean_entry.config(state="normal")
-            self.sku_entry.config(state="normal")
-            self.description_entry.config(state="disabled")
-        elif self.code_type.get() == "QRCode":
-            self.ean_entry.config(state="disabled")
-            self.sku_entry.config(state="normal")
-        elif self.code_type.get() == "Full Mercado Livre":
-            self.sku_entry.config(state="normal")
-            self.description_entry.config(state="normal")
-            self.ean_entry.config(state="disabled")
-
     def clear_data(self):
         if self.tree.get_children():
             self.tree.delete(*self.tree.get_children())
@@ -317,6 +379,8 @@ class BarcodeScreen:
         sku = self.sku_entry.get().strip()
         quantity = self.quantity_entry.get()
         description = self.description_entry.get().strip()
+        size = self.size_entry.get().strip()
+        code = self.code_product_entry.get().strip()
 
         if not quantity.isdigit():
             messagebox.showerror("Erro", "Quantidade inválida.")
@@ -333,11 +397,17 @@ class BarcodeScreen:
             messagebox.showerror("Erro", "EAN inválido. Deve conter 8, 12, 13 ou 14 dígitos.")
             return
 
+        if len(self.code_product_entry.get()) != 9:
+            messagebox.showerror("Erro", "O código inserido deve ter exatamente 9 caracteres.")
+            return
+
         eans_exits = {item[0] for item in self.generator.eans_and_skus}
         skus_exist = {item[1] for item in self.generator.eans_and_skus}
+        code_exist = {code}
 
-        if ean in eans_exits or sku in skus_exist or ean in self.manual_eans or sku in self.manual_skus:
-            messagebox.showwarning("Aviso", f"O EAN '{ean}' ou SKU '{sku}' já existem e foram desconsiderados.")
+        if ean in eans_exits or sku in skus_exist or ean in self.manual_eans or sku in self.manual_skus or code in self.manual_code_product:
+            messagebox.showwarning("Aviso",
+                                   f"O EAN '{ean}', SKU '{sku}' ou código '{code}' já existem e foram desconsiderados.")
             for item in self.tree.get_children():
                 item_values = self.tree.item(item, 'values')
                 if item_values[0] == ean or item_values[1] == sku:
@@ -354,16 +424,19 @@ class BarcodeScreen:
         if self.code_type.get() == "Ambos(EAN e SKU)":
             self.generator.add_ean_sku(int(ean), sku, int(quantity), "")
         if self.code_type.get() == "Full Mercado Livre":
-            self.generator.add_ean_sku("", sku, int(quantity), description)
+            self.generator.add_sku_code_description_tag_full("",sku, int(quantity), description, code, size)
 
-        self.tree.insert("", tk.END, values=(ean, sku, quantity, description))
+        self.tree.insert("", tk.END, values=(ean, sku, quantity, description, code, size))
         self.manual_eans.append(ean)
         self.manual_skus.append(sku)
+        self.manual_code_product.append(code)
 
         self.ean_entry.delete(0, tk.END)
         self.sku_entry.delete(0, tk.END)
         self.quantity_entry.delete(0, tk.END)
         self.description_entry.delete(0, tk.END)
+        self.code_product_entry.delete(0, tk.END)
+        self.size_entry.delete(0, tk.END)
 
     def calculate_quantity_to_send(self, total_quantity, columns):
         if columns == 2:
@@ -391,8 +464,7 @@ class BarcodeScreen:
 
         for item in selected_items:
             item_values = self.tree.item(item, 'values')
-
-            ean, sku, quantity_str, description = item_values
+            ean, sku, quantity_str, description, code_product, size = item_values
 
             if not quantity_str.isdigit():
                 messagebox.showwarning("Aviso", f"Quantidade inválida na linha: {item_values}. Ignorando.")
@@ -414,19 +486,20 @@ class BarcodeScreen:
                 columns = 4
 
             adjusted_quantity = self.calculate_quantity_to_send(quantity, columns)
-            labels_data.append((ean, sku, adjusted_quantity, description))
+            labels_data.append((ean, sku, adjusted_quantity, description, code_product, size))
 
         if not labels_data:
             messagebox.showerror("Erro", "Nenhum dado válido para gerar etiquetas.")
             return
 
         self.generator.eans_and_skus.clear()
-
-        for ean, sku, quantity, description in labels_data:
+        for ean, sku, quantity, description, code_product, size in labels_data:
             if selected_type == "EAN":
                 self.generator.add_ean_sku(ean, "", quantity, "")
             elif selected_type == "SKU":
                 self.generator.add_ean_sku("", sku, quantity, "")
+            elif selected_type == "Full Mercado Livre":
+                self.generator.add_sku_code_description_tag_full("", sku, quantity, description, code_product, size)
             else:
                 self.generator.add_ean_sku(ean, sku, quantity, description)
 
@@ -494,6 +567,19 @@ class BarcodeScreen:
         self.root.clipboard_append(value)
         self.root.update()
         messagebox.showinfo("Copiado!", f"Valor '{value}' copiado para a área de transferência.")
+
+    def copy_zpl(self, event=None):
+        for item in self.tree.selection():
+            self.tree.selection_remove(item)
+
+        zpl_content = self.label_text.get("1.0", tk.END).strip()
+        if zpl_content:
+            self.root.clipboard_clear()
+            self.root.clipboard_append(zpl_content)
+            self.root.update()
+            messagebox.showinfo("Copiado!", "Código ZPL copiado para a área de transferência.")
+        else:
+            messagebox.showwarning("Aviso", "Não há código ZPL para copiar.")
 
     def save_print_job(self):
         """Salva o código ZPL para impressão posterior"""
@@ -671,3 +757,9 @@ class BarcodeScreen:
     def confirm_removal(self, item):
         self.tree.delete(item)
         self.remove_window.destroy()
+
+    def deselect_on_click_outside(self, event):
+        if not (self.tree.winfo_containing(event.x_root, event.y_root) or self.label_text.winfo_containing(event.x_root,
+                                                                                                           event.y_root)):
+            self.tree.selection_remove(self.tree.selection())
+            print("Seleção removida da tabela, clicado fora.")

@@ -13,7 +13,13 @@ def main():
     root.style.configure("Logo.TLabel", background="#222", font=("Arial", 12), foreground="#EEE")
 
     root.title("Nova Tag")
-    root.geometry("1460x900")
+
+    if sys.platform.startswith("win"):
+        root.state("zoomed")
+    elif sys.platform.startswith("linux") or sys.platform.startswith("darwin"):
+        root.wm_attributes("-zoomed", True)
+    else:
+        root.geometry(f"{root.winfo_screenwidth()}x{root.winfo_screenheight()}+0+0")
 
     if sys.platform.startswith("win"):
         try:

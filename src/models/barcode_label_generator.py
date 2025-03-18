@@ -9,9 +9,13 @@ class BarcodeLabelGenerator:
     def add_ean_sku(self, ean, sku, quantity, description):
         self.eans_and_skus.append((ean, sku, quantity, description))
 
+    def add_sku_code_description_tag_full(self, ean, sku, quantity, description, code_product, size_product):
+        self.eans_and_skus.append((ean, sku, quantity, description, code_product, size_product))
+
     def set_label_format(self, label_format):
         self.label_format = label_format
         self.label_generator = LabelGenerator(label_format)
 
     def generate_zpl(self):
+        print(self.eans_and_skus)
         return self.label_generator.generate_zpl(self.eans_and_skus, self.label_format)
