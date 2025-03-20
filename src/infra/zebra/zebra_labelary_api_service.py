@@ -1,3 +1,8 @@
+# ----------------------------------------------------------------------------
+# Autor: Kaue de Matos
+# Empresa: Nova Software
+# Propriedade da Empresa: Todos os direitos reservados
+# ----------------------------------------------------------------------------
 import re
 from tkinter import messagebox
 from PIL import Image, ImageTk

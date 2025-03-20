@@ -1,3 +1,8 @@
+# ----------------------------------------------------------------------------
+# Autor: Kaue de Matos
+# Empresa: Nova Software
+# Propriedade da Empresa: Todos os direitos reservados
+# ----------------------------------------------------------------------------
 class DialogCenter:
     @staticmethod
     def center_window(window):

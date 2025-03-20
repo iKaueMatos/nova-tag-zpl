@@ -1,3 +1,8 @@
+# ----------------------------------------------------------------------------
+# Autor: Kaue de Matos
+# Empresa: Nova Software
+# Propriedade da Empresa: Todos os direitos reservados
+# ----------------------------------------------------------------------------
 class EANValidator:
     @staticmethod
     def is_valid_ean(ean):

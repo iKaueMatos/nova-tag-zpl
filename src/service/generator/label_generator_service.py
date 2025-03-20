@@ -1,3 +1,8 @@
+# ----------------------------------------------------------------------------
+# Autor: Kaue de Matos
+# Empresa: Nova Software
+# Propriedade da Empresa: Todos os direitos reservados
+# ----------------------------------------------------------------------------
 from typing import List, Tuple
 
 from src.service.generator.type_model_tag_service import TypeModelTagService
@@ -34,20 +39,21 @@ class LabelGenerator:
                 ean, sku, quantity, description, code, size = item
 
             adjusted_quantity = quantity if quantity % 2 == 0 else quantity + 1
-
             for _ in range(adjusted_quantity // 2):
                 zpl.append("^XA^CI28")
                 zpl.append("^PW800")
                 zpl.append("^LL200")
 
                 if sku and description and code and size:
-                    self.type_model_tag_service.generate_code_128_full(zpl, code, sku, description, size,
+                    self.type_model_tag_service.generate_code_128_full_mercado_livre(zpl, code, sku, description, size,
                                                                        self.label_format)
+                if sku and description and code:
+                    self.type_model_tag_service.generate_code_128_full_amazon(zpl, code, sku, description, self.label_format)
                 if ean and sku:
                     self.type_model_tag_service.append_both_label(zpl, ean, sku)
-                elif ean and not sku:
+                if ean and not sku:
                     self.type_model_tag_service.generate_ean(zpl, ean, self.label_format)
-                elif sku and not ean and not description:
+                if sku and not description:
                     self.type_model_tag_service.generate_code_128(zpl, sku, self.label_format)
 
                 zpl.append("^XZ")
@@ -74,9 +80,9 @@ class LabelGenerator:
                                                                        self.label_format)
                 if ean and sku:
                     self.type_model_tag_service.append_both_label(zpl, ean, sku)
-                elif ean and not sku:
+                if ean and not sku:
                     self.type_model_tag_service.generate_ean(zpl, ean, self.label_format)
-                elif sku and not ean:
+                if sku and not ean:
                     self.type_model_tag_service.generate_code_128(zpl, sku, self.label_format)
 
                 zpl.append("^XZ")

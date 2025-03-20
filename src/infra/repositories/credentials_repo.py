@@ -1,5 +1,9 @@
+# ----------------------------------------------------------------------------
+# Autor: Kaue de Matos
+# Empresa: Nova Software
+# Propriedade da Empresa: Todos os direitos reservados
+# ----------------------------------------------------------------------------
 from src.core.database.database import Database
-
 
 class CredentialsRepository:
     @staticmethod

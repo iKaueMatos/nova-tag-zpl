@@ -1,3 +1,8 @@
+# ----------------------------------------------------------------------------
+# Autor: Kaue de Matos
+# Empresa: Nova Software
+# Propriedade da Empresa: Todos os direitos reservados
+# ----------------------------------------------------------------------------
 import requests
 from .omie_alter_price_item import OmieAlterPriceItem
 from .omie_alter_product import OmieAlterProduct

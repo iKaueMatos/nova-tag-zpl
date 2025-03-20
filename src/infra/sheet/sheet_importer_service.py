@@ -1,3 +1,8 @@
+# ----------------------------------------------------------------------------
+# Autor: Kaue de Matos
+# Empresa: Nova Software
+# Propriedade da Empresa: Todos os direitos reservados
+# ----------------------------------------------------------------------------
 import tkinter as tk
 from tkinter import messagebox, filedialog
 
@@ -9,6 +14,7 @@ from src.service.generator.strategy.add_ean_strategy import AddEANStrategy
 from src.service.generator.strategy.add_full_mercadolivre_strategy import AddFullMercadoLivreStrategy
 from src.service.generator.strategy.add_sku_strategy import AddSKUStrategy
 from src.service.validation.ean_validator import EANValidator
+from src.utils.dialog_center import DialogCenter
 
 
 class SheetImporterService:
@@ -115,6 +121,7 @@ class SheetImporterService:
         dialog = tk.Toplevel()
         dialog.geometry("600x400")
         dialog.title("Selecione o Tipo de Geração de Etiqueta")
+        DialogCenter.center_window(dialog)
 
         ean_var = tk.BooleanVar()
         sku_var = tk.BooleanVar()
@@ -181,7 +188,12 @@ class SheetImporterService:
         barcode_label_generator.eans_and_skus = self.generator.eans_and_skus
         barcode_label_generator.set_label_format(self.label_format.get())
 
+        barcode_label_generator = BarcodeLabelGenerator()
+        barcode_label_generator.eans_and_skus = self.generator.eans_and_skus
+        barcode_label_generator.set_label_format(self.label_format.get())
+
         try:
+            self.zpl_code = barcode_label_generator.generate_zpl()
             if self.zpl_code:
                 self.label_text.config(state="normal")
                 self.label_text.delete("1.0", tk.END)
@@ -192,6 +204,5 @@ class SheetImporterService:
             else:
                 messagebox.showerror("Erro", "Falha ao gerar o código ZPL.")
                 self.print_button.config(state=tk.DISABLED)
-
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao gerar ZPL: {e}")

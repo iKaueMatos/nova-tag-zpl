@@ -1,7 +1,11 @@
+# ----------------------------------------------------------------------------
+# Autor: Kaue de Matos
+# Empresa: Nova Software
+# Propriedade da Empresa: Todos os direitos reservados
+# ----------------------------------------------------------------------------
 import os
 from sys import platform
 from tkinter import messagebox
-
 
 class LabelPrinter:
     def __init__(self, root):
