@@ -17,5 +17,4 @@ class BarcodeLabelGenerator:
         self.label_generator = LabelGenerator(label_format)
 
     def generate_zpl(self):
-        print(self.eans_and_skus)
         return self.label_generator.generate_zpl(self.eans_and_skus, self.label_format)

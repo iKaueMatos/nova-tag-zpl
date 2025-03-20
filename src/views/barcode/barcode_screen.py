@@ -5,12 +5,17 @@ import math
 
 from src.core.config.config import Config
 from src.core.config.enum.label_format_constants import LabelFormatConstants
+from src.infra.printer.LabelPrinter import LabelPrinter
 from src.infra.sheet.download_template_service import TemplateDownloadService
 from src.infra.sheet.sheet_importer_service import SheetImporterService
 from src.infra.zebra.zebra_labelary_api_service import ZebraLabelaryApiService
 from src.infra.zebra.zebra_printer_service import ZebraPrinterService
 from src.models import BarcodeLabelGenerator
 from src.routes.routes_screen import RoutesScreen
+from src.service.generator.strategy.add_both_strategy import AddBothStrategy
+from src.service.generator.strategy.add_ean_strategy import AddEANStrategy
+from src.service.generator.strategy.add_full_mercadolivre_strategy import AddFullMercadoLivreStrategy
+from src.service.generator.strategy.add_sku_strategy import AddSKUStrategy
 from src.utils.dialog_center import DialogCenter
 from src.service.validation.ean_validator import EANValidator
 from src.views.credentials.credentials_screen import CredentialsScreen
@@ -20,6 +25,7 @@ from src.views.product.product_screen import ProductScreen
 from src.views.modal.show_shortcuts import ShowShortcuts
 
 class BarcodeScreen:
+
     def __init__(self, root):
         self.root = root
         self.config = Config()
@@ -29,6 +35,7 @@ class BarcodeScreen:
         self.zpl_code = None
         self.selected_printer = self.config.load_saved_printer()
         self.zebra_labelary_api_service = ZebraLabelaryApiService()
+        self.label_printer = LabelPrinter(self.root)
         self.manual_eans = []
         self.manual_skus = []
         self.manual_code_product = []
@@ -168,7 +175,10 @@ class BarcodeScreen:
         self.clear_button = ttk.Button(button_frame, text="Limpar Dados", command=self.clear_data)
         self.clear_button.pack(side="left", expand=True, fill="both", padx=3)
 
-        self.print_button = ttk.Button(button_frame, text="Imprimir", command=self.print_label, state=tk.DISABLED)
+        self.print_button = ttk.Button(button_frame, text="Imprimir Etiqueta(ZPL)", command=self.print_label, state=tk.DISABLED)
+        self.print_button.pack(side="left", expand=True, fill="both", padx=3)
+
+        self.print_button = ttk.Button(button_frame, text="Imprimir Etiqueta(PDF)", command=self.print_label, state=tk.DISABLED)
         self.print_button.pack(side="left", expand=True, fill="both", padx=3)
 
         self.save_button = ttk.Button(button_frame, text="Salvar ZPL", command=self.save_zpl)
@@ -176,7 +186,7 @@ class BarcodeScreen:
 
         self.root.bind("<Control-c>", self.copy_column)
 
-        self.importer = SheetImporterService(self.generator, self.tree, self.code_type, self.label_format)
+        self.importer = SheetImporterService(self.generator, self.tree, self.code_type, self.label_format, self.label_text, self.print_button)
         self.template_download_service = TemplateDownloadService(self.root)
 
     def toggle_fields(self, event=None):
@@ -361,6 +371,22 @@ class BarcodeScreen:
         self.printer_service.print_label(zpl_data)
         messagebox.showinfo("Sucesso", "Etiqueta enviada para a impressora.")
 
+    def print_pdf_label(self, pdf_file_path):
+        """Imprime o PDF gerado usando o caminho do arquivo PDF."""
+        if not pdf_file_path:
+            messagebox.showerror("Erro", "Nenhum arquivo PDF válido encontrado.")
+            return
+
+        confirm = messagebox.askyesno("Confirmação", "Deseja realmente imprimir o PDF?")
+        if not confirm:
+            return
+
+        try:
+            self.label_printer.print_pdf(pdf_file_path)
+            messagebox.showinfo("Sucesso", "PDF enviado para a impressora.")
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao enviar o PDF para a impressora: {str(e)}")
+
     def clear_data(self):
         if self.tree.get_children():
             self.tree.delete(*self.tree.get_children())
@@ -377,37 +403,45 @@ class BarcodeScreen:
     def add_entry(self):
         ean = self.ean_entry.get().strip()
         sku = self.sku_entry.get().strip()
-        quantity = self.quantity_entry.get()
+        quantity = self.quantity_entry.get().strip()
         description = self.description_entry.get().strip()
         size = self.size_entry.get().strip()
         code = self.code_product_entry.get().strip()
+        code_type = self.code_type.get()
+
+        ean = ean if ean else "-"
+        sku = sku if sku else "-"
+        description = description if description else "-"
+        size = size if size else "-"
+        code = code if code else "-"
 
         if not quantity.isdigit():
             messagebox.showerror("Erro", "Quantidade inválida.")
             return
+        quantity = int(quantity)
 
-        if self.code_type.get() == "EAN" and not ean:
-            messagebox.showerror("Erro", "Por favor, preencha o campo EAN.")
-            return
-        if self.code_type.get() == "SKU" and not sku:
-            messagebox.showerror("Erro", "Por favor, preencha o campo SKU.")
-            return
-
-        if self.code_type.get() == "EAN" and not EANValidator.is_valid_ean(ean):
-            messagebox.showerror("Erro", "EAN inválido. Deve conter 8, 12, 13 ou 14 dígitos.")
-            return
-
-        if len(self.code_product_entry.get()) != 9:
+        if code != "-" and len(code) != 9:
             messagebox.showerror("Erro", "O código inserido deve ter exatamente 9 caracteres.")
+            return
+
+        if code_type == "EAN":
+            if ean == "-":
+                messagebox.showerror("Erro", "Por favor, preencha o campo EAN.")
+                return
+            if not EANValidator.is_valid_ean(ean):
+                messagebox.showerror("Erro", "EAN inválido. Deve conter 8, 12, 13 ou 14 dígitos.")
+                return
+        elif code_type == "SKU" and sku == "-":
+            messagebox.showerror("Erro", "Por favor, preencha o campo SKU.")
             return
 
         eans_exits = {item[0] for item in self.generator.eans_and_skus}
         skus_exist = {item[1] for item in self.generator.eans_and_skus}
-        code_exist = {code}
 
         if ean in eans_exits or sku in skus_exist or ean in self.manual_eans or sku in self.manual_skus or code in self.manual_code_product:
             messagebox.showwarning("Aviso",
                                    f"O EAN '{ean}', SKU '{sku}' ou código '{code}' já existem e foram desconsiderados.")
+
             for item in self.tree.get_children():
                 item_values = self.tree.item(item, 'values')
                 if item_values[0] == ean or item_values[1] == sku:
@@ -417,26 +451,27 @@ class BarcodeScreen:
                     break
             return
 
-        if self.code_type.get() == "EAN":
-            self.generator.add_ean_sku(int(ean), "", int(quantity), "")
-        if self.code_type.get() == "SKU":
-            self.generator.add_ean_sku("", sku, int(quantity), "")
-        if self.code_type.get() == "Ambos(EAN e SKU)":
-            self.generator.add_ean_sku(int(ean), sku, int(quantity), "")
-        if self.code_type.get() == "Full Mercado Livre":
-            self.generator.add_sku_code_description_tag_full("",sku, int(quantity), description, code, size)
+        strategy_map = {
+            "EAN": AddEANStrategy(),
+            "SKU": AddSKUStrategy(),
+            "Ambos(EAN e SKU)": AddBothStrategy(),
+            "Full Mercado Livre": AddFullMercadoLivreStrategy()
+        }
+
+        strategy = strategy_map.get(code_type)
+
+        if strategy:
+            strategy.add(self.generator, ean, sku, quantity, description, code, size)
 
         self.tree.insert("", tk.END, values=(ean, sku, quantity, description, code, size))
+
         self.manual_eans.append(ean)
         self.manual_skus.append(sku)
         self.manual_code_product.append(code)
 
-        self.ean_entry.delete(0, tk.END)
-        self.sku_entry.delete(0, tk.END)
-        self.quantity_entry.delete(0, tk.END)
-        self.description_entry.delete(0, tk.END)
-        self.code_product_entry.delete(0, tk.END)
-        self.size_entry.delete(0, tk.END)
+        for entry in [self.ean_entry, self.sku_entry, self.quantity_entry, self.description_entry,
+                      self.code_product_entry, self.size_entry]:
+            entry.delete(0, tk.END)
 
     def calculate_quantity_to_send(self, total_quantity, columns):
         if columns == 2:
@@ -683,6 +718,7 @@ class BarcodeScreen:
                 with open(file_path, "wb") as f:
                     f.write(pdf_data)
                 messagebox.showinfo("Sucesso", f"Arquivo PDF salvo em: {file_path}")
+                self.pdf_button.config(state="normal")
         else:
             messagebox.showerror("Erro", "Falha ao gerar o PDF da etiqueta.")
 

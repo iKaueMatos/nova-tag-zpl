@@ -23,10 +23,16 @@ class LabelGenerator:
 
         return label_generators[label_format](eans_and_skus)
 
-    def generate_zpl_2_columns(self, eans_and_skus: List[Tuple[str, str, int, str, str, str]]) -> str:
+    def generate_zpl_2_columns(self, eans_and_skus: List[Tuple]) -> str:
         zpl = []
 
-        for ean, sku, quantity, description, code, size in eans_and_skus:
+        for item in eans_and_skus:
+            if len(item) == 4:
+                ean, sku, quantity, description = item
+                code, size = "", ""
+            else:
+                ean, sku, quantity, description, code, size = item
+
             adjusted_quantity = quantity if quantity % 2 == 0 else quantity + 1
 
             for _ in range(adjusted_quantity // 2):
@@ -35,22 +41,29 @@ class LabelGenerator:
                 zpl.append("^LL200")
 
                 if sku and description and code and size:
-                    self.type_model_tag_service.generate_code_128_full(zpl, code, sku, description, size, self.label_format)
+                    self.type_model_tag_service.generate_code_128_full(zpl, code, sku, description, size,
+                                                                       self.label_format)
                 if ean and sku:
                     self.type_model_tag_service.append_both_label(zpl, ean, sku)
-                elif ean and sku == "":
+                elif ean and not sku:
                     self.type_model_tag_service.generate_ean(zpl, ean, self.label_format)
-                elif sku and ean == "" and description == "":
+                elif sku and not ean and not description:
                     self.type_model_tag_service.generate_code_128(zpl, sku, self.label_format)
 
                 zpl.append("^XZ")
 
         return "\n".join(zpl)
 
-    def generate_zpl_1_column(self, eans_and_skus: List[Tuple[str, str, int, str, str, str]]) -> str:
+    def generate_zpl_1_column(self, eans_and_skus: List[Tuple]) -> str:
         zpl = []
 
-        for ean, sku, quantity, description, size, code in eans_and_skus:
+        for item in eans_and_skus:
+            if len(item) == 4:
+                ean, sku, quantity, description = item
+                size, code = "", ""
+            else:
+                ean, sku, quantity, description, size, code = item
+
             for _ in range(quantity):
                 zpl.append("^XA^CI28")
                 zpl.append("^PW800")
@@ -61,9 +74,9 @@ class LabelGenerator:
                                                                        self.label_format)
                 if ean and sku:
                     self.type_model_tag_service.append_both_label(zpl, ean, sku)
-                elif ean and sku == "":
+                elif ean and not sku:
                     self.type_model_tag_service.generate_ean(zpl, ean, self.label_format)
-                elif sku and ean == "":
+                elif sku and not ean:
                     self.type_model_tag_service.generate_code_128(zpl, sku, self.label_format)
 
                 zpl.append("^XZ")

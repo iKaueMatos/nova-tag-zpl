@@ -1,15 +1,24 @@
-import pandas as pd
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import messagebox, filedialog
 
+import pandas as pd
+
+from src.models import BarcodeLabelGenerator
+from src.service.generator.strategy.add_both_strategy import AddBothStrategy
+from src.service.generator.strategy.add_ean_strategy import AddEANStrategy
+from src.service.generator.strategy.add_full_mercadolivre_strategy import AddFullMercadoLivreStrategy
+from src.service.generator.strategy.add_sku_strategy import AddSKUStrategy
 from src.service.validation.ean_validator import EANValidator
 
+
 class SheetImporterService:
-    def __init__(self, generator, tree, code_type, label_format):
+    def __init__(self, generator, tree, code_type, label_format, label_text, print_button):
         self.generator = generator
         self.tree = tree
         self.code_type = code_type
         self.label_format = label_format
+        self.label_text = label_text
+        self.print_button = print_button
 
     def import_sheet(self):
         file_path = filedialog.askopenfilename(filetypes=[("Planilhas", "*.csv *.xlsx *.xls *.ods")])
@@ -19,124 +28,170 @@ class SheetImporterService:
         try:
             data = self._read_file(file_path)
             data = self._clean_and_validate_data(data)
+
+            selected_code_type = self._ask_label_format()
+            if not selected_code_type:
+                messagebox.showwarning("Aviso", "Nenhum tipo de etiqueta selecionado.")
+                return
+
+            self.code_type.set(selected_code_type)
+
             self._process_data(data)
-            messagebox.showinfo("Sucesso", "Dados importados e tratados com sucesso!")
-        except pd.errors.EmptyDataError:
-            messagebox.showerror("Erro", "O arquivo está vazio.")
+
+        except (pd.errors.EmptyDataError, ValueError) as e:
+            messagebox.showerror("Erro", f"Erro nos dados: {e}")
         except pd.errors.ParserError:
             messagebox.showerror("Erro", "Erro ao ler o arquivo. Verifique o formato.")
-        except ValueError as e:
-            messagebox.showerror("Erro", f"Erro nos dados: {e}")
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao importar planilha: {e}")
 
     def _read_file(self, file_path):
-        """Lê o arquivo, tentando diferentes formatos e codificações se necessário."""
         try:
             if file_path.endswith(".csv"):
                 try:
                     return pd.read_csv(file_path, encoding="utf-8")
                 except UnicodeDecodeError:
                     return pd.read_csv(file_path, encoding="latin-1")
-
             elif file_path.endswith((".xlsx", ".xls")):
                 return pd.read_excel(file_path)
-
             elif file_path.endswith(".ods"):
                 return pd.read_excel(file_path, engine="odf")
-
             else:
                 raise ValueError("Formato de arquivo não suportado!")
-
         except Exception as e:
             raise ValueError(f"Erro ao ler o arquivo: {e}")
 
     def _clean_and_validate_data(self, data):
-        """
-        Trata e valida os dados:
-            - Converte EAN e Quantidade para números.
-            - Garante que SKU seja tratado como string.
-            - Substitui células vazias por '-'.
-            - Remove linhas com dados inválidos.
-        """
-        data["EAN"] = data["EAN"].astype(str).str.replace(".0", "", regex=False)
-        data["SKU"] = data["SKU"].astype(str).str.replace(".0", "", regex=False)
+        required_columns = ["EAN", "SKU", "Código", "Descrição", "Tamanho", "Quantidade"]
+        for col in required_columns:
+            if col not in data.columns:
+                data[col] = "-"
 
-        data.loc[:, "EAN"] = data["EAN"].fillna("-")
-        data.loc[:, "SKU"] = data["SKU"].fillna("-")
-        data["Quantidade"] = pd.to_numeric(data["Quantidade"], errors="coerce", downcast="integer")
-        data["Quantidade"] = data["Quantidade"].fillna(0).astype(int)
-        data.loc[:, "Quantidade"] = data["Quantidade"].astype(str)
+        data["EAN"] = data["EAN"].astype(str).fillna("-")
+        data["SKU"] = data["SKU"].astype(str).fillna("-")
+        data["Código"] = data["Código"].astype(str).fillna("-")
+        data["Descrição"] = data["Descrição"].astype(str).fillna("-")
+        data["Tamanho"] = data["Tamanho"].astype(str).fillna("-")
+        data["Quantidade"] = pd.to_numeric(data["Quantidade"], errors="coerce").fillna(0).astype(int)
 
-        data["EAN"] = pd.to_numeric(data["EAN"], errors="coerce", downcast="integer")
-        data["Quantidade"] = pd.to_numeric(data["Quantidade"], errors="coerce", downcast="integer")
+        data = data[(data["EAN"] != "-") | (data["SKU"] != "-")]
 
+        data["EAN"] = pd.to_numeric(data["EAN"], errors="coerce")
         data = data.dropna(subset=["EAN", "Quantidade"])
         data = data[data["EAN"] != 0]
-        data = data[data["Quantidade"] != 0]
-        data = data[data["SKU"].str.match(r"^[a-zA-Z0-9]+$")]
+        data = data[data["Quantidade"] > 0]
 
-        duplicated = data[data.duplicated(["EAN", "SKU"], keep=False)]
+        data = data[data["SKU"].str.match(r"^[a-zA-Z0-9\-]*$")]
+
+        duplicated = data[data.duplicated(["EAN", "SKU", "Código"], keep=False)]
         if not duplicated.empty:
-            duplicates_list = duplicated.to_string(index=False)
-            messagebox.showwarning("Aviso",
-                                   f"Os seguintes EANs e SKUs foram desconsiderados por serem duplicados:\n{duplicates_list}")
-            data = data.drop_duplicates(["EAN", "SKU"], keep='first')
+            messagebox.showwarning("Aviso", f"Algumas linhas foram desconsideradas por duplicação:\n{duplicated.to_string(index=False)}")
+            data = data.drop_duplicates(["EAN", "SKU", "Código"], keep='first')
 
         return data
 
+    def _ask_label_format(self):
+        selected_code_type = None
+
+        def on_submit():
+            nonlocal selected_code_type
+
+            if ean_var.get():
+                selected_code_type = "EAN"
+            elif sku_var.get():
+                selected_code_type = "SKU"
+            elif both_var.get():
+                selected_code_type = "Ambos(EAN e SKU)"
+            elif full_ml_var.get():
+                selected_code_type = "Full Mercado Livre"
+
+            if one_column_var.get():
+                self.label_format.set("1-Coluna")
+            elif two_column_var.get():
+                self.label_format.set("2-Colunas")
+
+            dialog.destroy()
+
+        dialog = tk.Toplevel()
+        dialog.geometry("600x400")
+        dialog.title("Selecione o Tipo de Geração de Etiqueta")
+
+        ean_var = tk.BooleanVar()
+        sku_var = tk.BooleanVar()
+        both_var = tk.BooleanVar()
+        full_ml_var = tk.BooleanVar()
+        one_column_var = tk.BooleanVar()
+        two_column_var = tk.BooleanVar()
+
+        tk.Label(dialog, text="Selecione o tipo de código:").pack()
+        tk.Checkbutton(dialog, text="EAN", variable=ean_var).pack()
+        tk.Checkbutton(dialog, text="SKU", variable=sku_var).pack()
+        tk.Checkbutton(dialog, text="Ambos (EAN e SKU)", variable=both_var).pack()
+        tk.Checkbutton(dialog, text="Full Mercado Livre", variable=full_ml_var).pack()
+
+        tk.Label(dialog, text="Selecione o formato da etiqueta:").pack()
+        tk.Checkbutton(dialog, text="1-Coluna", variable=one_column_var).pack()
+        tk.Checkbutton(dialog, text="2-Colunas", variable=two_column_var).pack()
+
+        tk.Button(dialog, text="Confirmar", command=on_submit).pack()
+
+        dialog.grab_set()
+        dialog.wait_window()
+
+        return selected_code_type
+
     def _process_data(self, data):
-        """
-        Processa os dados tratados e os adiciona ao Treeview e ao gerador.
-        """
-        columns = data.columns
-
-        if "EAN" in columns and "SKU" in columns:
-            self.code_type.set("Ambos")
-        elif "EAN" in columns:
-            self.code_type.set("EAN")
-        elif "SKU" in columns:
-            self.code_type.set("SKU")
-        else:
-            messagebox.showerror("Erro", "A planilha deve conter pelo menos uma coluna 'EAN' ou 'SKU'.")
-            return
-
-        if "EAN" in columns and "SKU" in columns:
-            confirm = messagebox.askyesno("Confirmação", "A planilha contém colunas 'EAN' e 'SKU'. Deseja gerar etiquetas com ambos os dados?")
-            if not confirm:
-                return
-
-        label_format = messagebox.askquestion("Formato da Etiqueta", "Deseja gerar etiquetas em \n (SIM) 1-Coluna \n ou \n (NÃO) 2-Colunas?", icon='question')
-        if label_format == 'yes':
-            self.label_format.set("1-Coluna")
-        else:
-            self.label_format.set("2-Colunas")
+        strategy_map = {
+            "EAN": AddEANStrategy(),
+            "SKU": AddSKUStrategy(),
+            "Ambos(EAN e SKU)": AddBothStrategy(),
+            "Full Mercado Livre": AddFullMercadoLivreStrategy()
+        }
 
         for _, row in data.iterrows():
-            ean = int(row.get("EAN", ""))
-            sku = str(row.get("SKU", "")).strip()
-            quantity = int(row.get("Quantidade", ""))
+            try:
+                ean = int(row.get("EAN")) if pd.notnull(row.get("EAN")) else "-"
+            except ValueError:
+                ean = "-"
 
-            if not quantity:
-                messagebox.showerror("Erro", "Quantidade inválida.")
+            sku = str(row.get("SKU", "-")).strip()
+            quantity = int(row.get("Quantidade", 0))
+            code = str(row.get("Código", "-")).strip()
+            description = str(row.get("Descrição", "-")).strip()
+            size = str(row.get("Tamanho", "-")).strip()
+
+            if quantity <= 0:
                 continue
 
-            if self.code_type.get() == "EAN" and not ean:
-                messagebox.showerror("Erro", "Por favor, preencha o campo EAN.")
-                continue
-            if self.code_type.get() == "SKU" and not sku:
-                messagebox.showerror("Erro", "Por favor, preencha o campo SKU.")
-                continue
-
-            if self.code_type.get() == "EAN" and not EANValidator.is_valid_ean(ean):
-                messagebox.showerror("Erro", "EAN inválido. Deve conter 8, 12, 13 ou 14 dígitos.")
+            if self.code_type.get() == "EAN" and (ean == "-" or not EANValidator.is_valid_ean(str(ean))):
                 continue
 
             if any(ean == existing[0] and sku == existing[1] for existing in self.generator.eans_and_skus):
-                messagebox.showwarning("Aviso", f"EAN {ean} e SKU {sku} já existem e foram desconsiderados.")
                 continue
 
-            self.generator.add_ean_sku(ean, sku, int(quantity))
-            self.tree.insert("", tk.END, values=(ean, sku, quantity))
+            strategy = strategy_map.get(self.code_type.get())
+            if strategy:
+                strategy.add(self.generator, ean, sku, quantity, description, code, size)
 
-        messagebox.showinfo("Sucesso", "Dados processados e etiquetas geradas com sucesso!")
+            self.tree.insert("", tk.END, values=(ean, sku, quantity, description, code, size))
+
+        messagebox.showinfo("Sucesso", "Dados processados")
+
+        barcode_label_generator = BarcodeLabelGenerator()
+        barcode_label_generator.eans_and_skus = self.generator.eans_and_skus
+        barcode_label_generator.set_label_format(self.label_format.get())
+
+        try:
+            if self.zpl_code:
+                self.label_text.config(state="normal")
+                self.label_text.delete("1.0", tk.END)
+                self.label_text.insert("1.0", self.zpl_code)
+                self.label_text.config(state="disabled")
+                self.print_button.config(state=tk.NORMAL)
+                messagebox.showinfo("Sucesso", "Código ZPL gerado com sucesso!")
+            else:
+                messagebox.showerror("Erro", "Falha ao gerar o código ZPL.")
+                self.print_button.config(state=tk.DISABLED)
+
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao gerar ZPL: {e}")

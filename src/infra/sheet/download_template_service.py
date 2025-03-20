@@ -12,11 +12,11 @@ class TemplateDownloadService:
         sheet = workbook.active
         sheet.title = "Template de Dados"
 
-        headers = ["EAN", "SKU", "Quantidade"]
+        headers = ["EAN", "SKU", "Quantidade", "Código", "Descrição", "Tamanho"]
         example_data = [
-            ["7891234567890", "SKU12345", 10],
-            ["7890987654321", "SKU54321", 20],
-            ["", "", ""]
+            ["7891234567890", "SKU12345", 10, "ABCDEFDEE", "Produto Exemplo 1", "M"],
+            ["7890987654321", "SKU54321", 20, "987654321", "Produto Exemplo 2", "G"],
+            ["", "", "", "", "", ""]
         ]
 
         for col_num, header in enumerate(headers, 1):
@@ -34,11 +34,14 @@ class TemplateDownloadService:
             "Instruções:\n"
             "- Preencha a coluna 'EAN' com os códigos de barras dos produtos.\n"
             "- A coluna 'SKU' deve conter o identificador único do produto.\n"
-            "- A coluna 'Quantidade' indica quantas etiqueta daquele ean do produto serão geradas.\n"
+            "- A coluna 'Quantidade' indica quantas etiquetas daquele EAN do produto serão geradas.\n"
+            "- A coluna 'Código' deve conter um identificador exclusivo de 9 dígitos.\n"
+            "- A coluna 'Descrição' pode conter detalhes adicionais do produto.\n"
+            "- A coluna 'Tamanho' deve conter informações como P, M, G, etc.\n"
             "- Se não quiser preencher um dado, deixe em branco e o sistema irá substituir por '-'.\n"
         )
-        sheet.cell(row=5, column=5, value=instructions)
-        sheet.column_dimensions['E'].width = 60
+        sheet.cell(row=6, column=8, value=instructions)
+        sheet.column_dimensions['H'].width = 80
 
         file_path = filedialog.asksaveasfilename(defaultextension=".xlsx",
                                                  filetypes=[("Excel Files", "*.xlsx")])
