@@ -71,12 +71,48 @@ class ZPLManualView:
         right_frame = ttk.Frame(self.window, padding=10)
         right_frame.grid(row=0, column=1, sticky="nsew")
 
-        ttk.Label(right_frame, text="Pré-visualização da Etiqueta:", font=("Helvetica", 12, "bold")).pack(anchor="w")
-        self.preview_image_label = ttk.Label(right_frame, text="Preview não disponível", relief="sunken", anchor="center")
+        ttk.Label(right_frame, text="Pré-visualização da Etiqueta:", font=("Helvetica", 12, "bold")).pack(anchor="w",
+                                                                                                          pady=(10, 0))
+        self.preview_image_label = ttk.Label(right_frame, text="Preview não disponível", relief="sunken",
+                                             anchor="center")
         self.preview_image_label.pack(expand=True, fill="both")
 
+        bottom_config_frame = ttk.Frame(self.window, padding=10)
+        bottom_config_frame.grid(row=1, column=0, columnspan=2, sticky="ew")
+
+        ttk.Label(bottom_config_frame, text="Print Density:").grid(row=0, column=0, padx=5, pady=3, sticky="e")
+        self.density_combobox = ttk.Combobox(bottom_config_frame, values=[
+            "6 dpmm (152 dpi)", "8 dpmm (203 dpi)", "12 dpmm (300 dpi)", "24 dpmm (600 dpi)"
+        ], state="readonly", width=18)
+        self.density_combobox.grid(row=0, column=1, padx=5, pady=3, sticky="w")
+        self.density_combobox.current(1)
+
+        ttk.Label(bottom_config_frame, text="Label Size (L x A):").grid(row=0, column=2, padx=5, pady=3, sticky="e")
+        size_frame = ttk.Frame(bottom_config_frame)
+        size_frame.grid(row=0, column=3, sticky="w")
+        self.label_width_entry = ttk.Entry(size_frame, width=5)
+        self.label_width_entry.insert(0, "100")
+        self.label_width_entry.pack(side="left", padx=(0, 5))
+        self.label_height_entry = ttk.Entry(size_frame, width=5)
+        self.label_height_entry.insert(0, "25")
+        self.label_height_entry.pack(side="left", padx=(0, 5))
+        self.label_unit_combobox = ttk.Combobox(size_frame, values=["mm", "cm", "in"], width=5, state="readonly")
+        self.label_unit_combobox.current(0)
+        self.label_unit_combobox.pack(side="left")
+
+        ttk.Label(bottom_config_frame, text="Show Label:").grid(row=0, column=4, padx=5, pady=3, sticky="e")
+        show_frame = ttk.Frame(bottom_config_frame)
+        show_frame.grid(row=0, column=5, sticky="w")
+        self.show_label_entry = ttk.Entry(show_frame, width=5)
+        self.show_label_entry.insert(0, "1")
+        self.show_label_entry.pack(side="left")
+        ttk.Label(show_frame, text="de").pack(side="left", padx=5)
+        self.total_labels_entry = ttk.Entry(show_frame, width=5, state="readonly")
+        self.total_labels_entry.insert(0, "1")
+        self.total_labels_entry.pack(side="left")
+
         button_frame = ttk.Frame(self.window, padding=10)
-        button_frame.grid(row=1, column=0, columnspan=2, sticky="ew")
+        button_frame.grid(row=2, column=0, columnspan=2, sticky="ew")
 
         self.preview_button = ttk.Button(button_frame, text="Gerar Preview", command=self.generate_preview)
         self.preview_button.pack(side="left", padx=5, pady=5)

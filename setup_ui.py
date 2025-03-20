@@ -44,9 +44,6 @@ def main():
     frame = tb.Frame(root, padding=10)
     frame.grid(row=0, column=0, sticky="nsew")
 
-    theme_button = tb.Button(frame, text="Alternar Tema", bootstyle="primary", command=toggle_theme)
-    theme_button.grid(row=0, column=0, padx=10, pady=10)
-
     app = BarcodeScreen(root)
 
     root.grid_rowconfigure(0, weight=1)
