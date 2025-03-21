@@ -75,41 +75,57 @@ class ZPLManualView:
                                                                                                           pady=(10, 0))
         self.preview_image_label = ttk.Label(right_frame, text="Preview não disponível", relief="sunken",
                                              anchor="center")
-        self.preview_image_label.pack(expand=True, fill="both")
+        self.preview_image_label.pack(expand=True, fill="both", padx=5, pady=5)
 
         bottom_config_frame = ttk.Frame(self.window, padding=10)
         bottom_config_frame.grid(row=1, column=0, columnspan=2, sticky="ew")
 
-        ttk.Label(bottom_config_frame, text="Print Density:").grid(row=0, column=0, padx=5, pady=3, sticky="e")
-        self.density_combobox = ttk.Combobox(bottom_config_frame, values=[
+        # Subframe: Densidade de impressão
+        density_frame = ttk.Frame(bottom_config_frame)
+        density_frame.pack(side="left", padx=10)
+
+        ttk.Label(density_frame, text="Densidade de impressão:", font=("Helvetica", 10)).grid(row=0, column=0,
+                                                                                              sticky="e", padx=3,
+                                                                                              pady=3)
+        self.density_combobox = ttk.Combobox(density_frame, values=[
             "6 dpmm (152 dpi)", "8 dpmm (203 dpi)", "12 dpmm (300 dpi)", "24 dpmm (600 dpi)"
-        ], state="readonly", width=18)
-        self.density_combobox.grid(row=0, column=1, padx=5, pady=3, sticky="w")
+        ], state="readonly", width=20)
+        self.density_combobox.grid(row=0, column=1, sticky="w", padx=3, pady=3)
         self.density_combobox.current(1)
 
-        ttk.Label(bottom_config_frame, text="Label Size (L x A):").grid(row=0, column=2, padx=5, pady=3, sticky="e")
         size_frame = ttk.Frame(bottom_config_frame)
-        size_frame.grid(row=0, column=3, sticky="w")
-        self.label_width_entry = ttk.Entry(size_frame, width=5)
-        self.label_width_entry.insert(0, "100")
-        self.label_width_entry.pack(side="left", padx=(0, 5))
-        self.label_height_entry = ttk.Entry(size_frame, width=5)
-        self.label_height_entry.insert(0, "25")
-        self.label_height_entry.pack(side="left", padx=(0, 5))
-        self.label_unit_combobox = ttk.Combobox(size_frame, values=["mm", "cm", "in"], width=5, state="readonly")
-        self.label_unit_combobox.current(0)
-        self.label_unit_combobox.pack(side="left")
+        size_frame.pack(side="left", padx=10)
 
-        ttk.Label(bottom_config_frame, text="Show Label:").grid(row=0, column=4, padx=5, pady=3, sticky="e")
-        show_frame = ttk.Frame(bottom_config_frame)
-        show_frame.grid(row=0, column=5, sticky="w")
-        self.show_label_entry = ttk.Entry(show_frame, width=5)
+        ttk.Label(size_frame, text="Etiqueta (L x A):", font=("Helvetica", 10)).grid(row=0, column=0, sticky="e",
+                                                                                     padx=3, pady=3)
+        self.label_width_entry = ttk.Entry(size_frame, width=5)
+        self.label_width_entry.insert(0, "4")
+        self.label_width_entry.grid(row=0, column=1, padx=(0, 3), pady=3)
+
+        ttk.Label(size_frame, text="x").grid(row=0, column=2, padx=2)
+
+        self.label_height_entry = ttk.Entry(size_frame, width=5)
+        self.label_height_entry.insert(0, "6")
+        self.label_height_entry.grid(row=0, column=3, padx=(0, 3), pady=3)
+
+        self.label_unit_combobox = ttk.Combobox(size_frame, values=["inches", "cm", "mm"], width=7, state="readonly")
+        self.label_unit_combobox.current(0)
+        self.label_unit_combobox.grid(row=0, column=4, padx=3, pady=3)
+
+        labels_frame = ttk.Frame(bottom_config_frame)
+        labels_frame.pack(side="left", padx=10)
+
+        ttk.Label(labels_frame, text="Rótulo atual:", font=("Helvetica", 10)).grid(row=0, column=0, sticky="e", padx=3,
+                                                                                   pady=3)
+        self.show_label_entry = ttk.Entry(labels_frame, width=5)
         self.show_label_entry.insert(0, "1")
-        self.show_label_entry.pack(side="left")
-        ttk.Label(show_frame, text="de").pack(side="left", padx=5)
-        self.total_labels_entry = ttk.Entry(show_frame, width=5, state="readonly")
+        self.show_label_entry.grid(row=0, column=1, padx=3, pady=3)
+
+        ttk.Label(labels_frame, text="Total de rótulos:", font=("Helvetica", 10)).grid(row=0, column=2, sticky="e",
+                                                                                       padx=3, pady=3)
+        self.total_labels_entry = ttk.Entry(labels_frame, width=5, state="disabled")
         self.total_labels_entry.insert(0, "1")
-        self.total_labels_entry.pack(side="left")
+        self.total_labels_entry.grid(row=0, column=3, padx=3, pady=3)
 
         button_frame = ttk.Frame(self.window, padding=10)
         button_frame.grid(row=2, column=0, columnspan=2, sticky="ew")
@@ -130,15 +146,37 @@ class ZPLManualView:
             return
 
         try:
-            image_data = self.zebra_labelary_api_service.generate_preview_image(zpl_code, calculate=True)
+            unit = self.label_unit_combobox.get()
+            width = float(self.label_width_entry.get())
+            height = float(self.label_height_entry.get())
+            width_in_inches = self.convert_to_inches(width, unit)
+            height_in_inches = self.convert_to_inches(height, unit)
+
+            density_mapping = {
+                "6 dpmm (152 dpi)": "6dpmm",
+                "8 dpmm (203 dpi)": "8dpmm",
+                "12 dpmm (300 dpi)": "12dpmm",
+                "24 dpmm (600 dpi)": "24dpmm"
+            }
+            selected_density_text = self.density_combobox.get()
+            density = density_mapping.get(selected_density_text, "8dpmm")  # fallback padrão
+
+            image_data = self.zebra_labelary_api_service.generate_preview_image(
+                zpl_code,
+                density,
+                f"{width_in_inches}x{height_in_inches}",
+            )
+
             if image_data:
-                image = Image.open(io.BytesIO(image_data))
-                image = image.resize((350, 350), Image.ANTIALIAS)
+                image = image_data.resize((350, 350), Image.Resampling.LANCZOS)
                 photo = ImageTk.PhotoImage(image)
                 self.preview_image_label.configure(image=photo, text="")
                 self.preview_image_label.image = photo
             else:
                 messagebox.showerror("Erro", "Não foi possível gerar a imagem desta etiqueta.")
+
+        except ValueError:
+            messagebox.showerror("Erro", "As dimensões da etiqueta devem ser numéricas.")
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao gerar preview: {e}")
 
@@ -234,3 +272,14 @@ class ZPLManualView:
             self.print_button.config(state=tk.NORMAL)
         else:
             self.print_button.config(state=tk.DISABLED)
+
+    def convert_to_inches(self, value, unit):
+        try:
+            value = float(value)
+            if unit == "mm":
+                return value / 25.4
+            elif unit == "cm":
+                return value / 2.54
+            return value
+        except ValueError:
+            return 0
