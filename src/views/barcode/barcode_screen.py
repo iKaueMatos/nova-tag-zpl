@@ -16,7 +16,6 @@ from src.infra.sheet.sheet_importer_service import SheetImporterService
 from src.infra.zebra.zebra_labelary_api_service import ZebraLabelaryApiService
 from src.infra.zebra.zebra_printer_service import ZebraPrinterService
 from src.models import BarcodeLabelGenerator
-from src.routes.routes_screen import RoutesScreen
 from src.service.generator.strategy.add_both_strategy import AddBothStrategy
 from src.service.generator.strategy.add_ean_strategy import AddEANStrategy
 from src.service.generator.strategy.add_full_amazon_strategy import AddFullAmazonStrategy
@@ -35,7 +34,6 @@ class BarcodeScreen:
         self.config = Config()
         self.generator = BarcodeLabelGenerator()
         self.printer_service = ZebraPrinterService()
-        self.routes = RoutesScreen().get_routes()
         self.zpl_code = None
         self.selected_printer = self.config.load_saved_printer()
         self.zebra_labelary_api_service = ZebraLabelaryApiService()
@@ -87,8 +85,7 @@ class BarcodeScreen:
         # Tela dinamica | Routes.yaml
         self.new_screens_menu = tk.Menu(self.menu_bar, tearoff=0)
         self.menu_bar.add_cascade(label="Ferramentas Adicionais", menu=self.new_screens_menu)
-        for screen_name in self.routes['screens']:
-            self.new_screens_menu.add_command(label=screen_name, command=lambda name=screen_name: self.open_screen(name))
+        self.new_screens_menu.add_command(label="Impressao ZPL", command=lambda name="Impressao ZPL": self.open_screen("Impressao ZPL"))
 
         self.help_menu = tk.Menu(self.menu_bar, tearoff=0)
         self.menu_bar.add_cascade(label="Ajuda", menu=self.help_menu)
