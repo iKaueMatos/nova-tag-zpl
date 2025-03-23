@@ -1,18 +1,38 @@
-# ----------------------------------------------------------------------------
-# Autor: Kaue de Matos
-# Empresa: Nova Software
-# Propriedade da Empresa: Todos os direitos reservados
-# ----------------------------------------------------------------------------
-from typing import List, Tuple
+from typing import List, Union
 
+from src.models.Label_item import LabelItem
 from src.service.generator.type_model_tag_service import TypeModelTagService
 
 class LabelGenerator:
-    def __init__(self, label_format: str):  # Valor padrão definido
+    def __init__(self, label_format: str, model_tag: str):
         self.type_model_tag_service = TypeModelTagService()
         self.label_format = label_format
 
-    def generate_zpl(self, eans_and_skus: List[Tuple[str, str, int, str, str, str, str]], label_format: str = None) -> str:
+    def generate_zpl(self, eans_and_skus: List[Union[LabelItem, tuple]], label_format: str = None,
+                     model_tag=None) -> str:
+        def sanitize_value(value):
+            """ Substitui valores vazios ('', '-') por None """
+            return None if value in ["", "-"] else value
+
+        def create_label_item(item):
+            if isinstance(item, LabelItem):
+                return item
+            elif isinstance(item, tuple):
+                ean, sku, quantity, description, *optional = item
+                code, size = (optional + ["", ""])[:2]
+
+                return LabelItem(
+                    sanitize_value(ean),
+                    sanitize_value(sku),
+                    sanitize_value(quantity),
+                    sanitize_value(description),
+                    sanitize_value(code),
+                    sanitize_value(size)
+                )
+            else:
+                raise ValueError(f"Formato inválido para item: {item}")
+
+        eans_and_skus = [create_label_item(item) for item in eans_and_skus]
         label_format = label_format or self.label_format
 
         if not label_format:
@@ -26,89 +46,60 @@ class LabelGenerator:
         if label_format not in label_generators:
             raise ValueError("Formato de etiqueta desconhecido.")
 
-        return label_generators[label_format](eans_and_skus)
+        return label_generators[label_format](eans_and_skus, model_tag)
 
-    def generate_zpl_2_columns(self, eans_and_skus: List[Tuple]) -> str:
+    def generate_zpl_2_columns(self, eans_and_skus: List[LabelItem], model_tag) -> str:
         zpl = []
 
         for item in eans_and_skus:
-            if len(item) == 4:
-                ean, sku, quantity, description = item
-                code, size = "", ""
-            else:
-                ean, sku, quantity, description, code, size = item
+            adjusted_quantity = item.quantity if item.quantity % 2 == 0 else item.quantity + 1
 
-            ean = ean if ean != "-" else ""
-            sku = sku if sku != "-" else ""
-            description = description if description != "-" else ""
-            code = code if code != "-" else ""
-            size = size if size != "-" else ""
-
-            adjusted_quantity = quantity if quantity % 2 == 0 else quantity + 1
             for _ in range(adjusted_quantity // 2):
                 zpl.append("^XA^CI28")
                 zpl.append("^PW800")
                 zpl.append("^LL200")
 
-                if sku and description and code and size:
-                    self.type_model_tag_service.generate_code_128_full_mercado_livre(zpl, code, sku, description, size,
-                                                                       self.label_format)
-                if sku and description and code:
-                    self.type_model_tag_service.generate_code_128_full_amazon(zpl, code, sku, description, self.label_format)
-                if ean and sku:
-                    self.type_model_tag_service.append_both_label(zpl, ean, sku)
-                if ean and not sku:
-                    self.type_model_tag_service.generate_ean(zpl, ean, self.label_format)
-                if sku and not description:
-                    self.type_model_tag_service.generate_code_128(zpl, sku, self.label_format)
+                if model_tag == "Full Mercado Livre":
+                    self.type_model_tag_service.generate_code_128_full_mercado_livre(zpl, item.code, item.sku,
+                                                                                     item.description, item.size,
+                                                                                     self.label_format)
+                elif model_tag == "Full Amazon":
+                    self.type_model_tag_service.generate_code_128_full_amazon(zpl, item.code, item.sku,
+                                                                              item.description, self.label_format)
+                elif model_tag == "Ambos(EAN e SKU)":
+                    self.type_model_tag_service.append_both_label(zpl, item.ean, item.sku)
+                elif model_tag == "EAN":
+                    self.type_model_tag_service.generate_ean(zpl, item.ean, self.label_format)
+                elif model_tag == "SKU":
+                    self.type_model_tag_service.generate_code_128(zpl, item.sku, self.label_format)
 
                 zpl.append("^XZ")
 
         return "\n".join(zpl)
 
-    def generate_zpl_1_column(self, eans_and_skus: List[Tuple]) -> str:
+    def generate_zpl_1_column(self, eans_and_skus: List[LabelItem], model_tag) -> str:
         zpl = []
 
         for item in eans_and_skus:
-            if len(item) == 4:
-                ean, sku, quantity, description = item
-                size, code = "", ""
-            else:
-                ean, sku, quantity, description, size, code = item
-
-            ean = ean if ean != "-" else ""
-            sku = sku if sku != "-" else ""
-            description = description if description != "-" else ""
-            code = code if code != "-" else ""
-            size = size if size != "-" else ""
-
-            for _ in range(quantity):
+            for _ in range(item.quantity):
                 zpl.append("^XA^CI28")
                 zpl.append("^PW800")
                 zpl.append("^LL300")
 
-                if sku and description and code and size:
-                    self.type_model_tag_service.generate_code_128_full_mercado_livre(zpl, code, sku, description, size,
+                if model_tag == "Full Mercado Livre":
+                    self.type_model_tag_service.generate_code_128_full_mercado_livre(zpl, item.code, item.sku,
+                                                                                     item.description, item.size,
                                                                                      self.label_format)
-                if sku and description and code:
-                    self.type_model_tag_service.generate_code_128_full_amazon(zpl, code, sku, description,
-                                                                              self.label_format)
-                if ean and sku:
-                    self.type_model_tag_service.append_both_label(zpl, ean, sku)
-                if ean and not sku:
-                    self.type_model_tag_service.generate_ean(zpl, ean, self.label_format)
-                if sku and not description:
-                    self.type_model_tag_service.generate_code_128(zpl, sku, self.label_format)
+                elif model_tag == "Full Amazon":
+                    self.type_model_tag_service.generate_code_128_full_amazon(zpl, item.code, item.sku,
+                                                                              item.description, self.label_format)
+                elif model_tag == "Ambos(EAN e SKU)":
+                    self.type_model_tag_service.append_both_label(zpl, item.ean, item.sku)
+                elif model_tag == "EAN":
+                    self.type_model_tag_service.generate_ean(zpl, item.ean, self.label_format)
+                elif model_tag == "SKU":
+                    self.type_model_tag_service.generate_code_128(zpl, item.sku, self.label_format)
 
                 zpl.append("^XZ")
 
-        zpl = [item for item in zpl if item is not None]
         return "\n".join(zpl)
-
-    def stop_generation_after_first_run(self, eans_and_skus: List[Tuple[str, str, int, str, str, str]]) -> str:
-        """
-        Método para interromper a execução após gerar a quantidade solicitada de etiquetas
-        e devolver o retorno das etiquetas ao usuário.
-        """
-        generated_zpl = self.generate_zpl(eans_and_skus)
-        return generated_zpl

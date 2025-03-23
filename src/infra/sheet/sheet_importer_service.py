@@ -26,6 +26,7 @@ class SheetImporterService:
         self.label_format = label_format
         self.label_text = label_text
         self.print_button = print_button
+        self.model_tag = None
 
     def import_sheet(self):
         file_path = filedialog.askopenfilename(filetypes=[("Planilhas", "*.csv *.xlsx *.xls *.ods")])
@@ -198,11 +199,7 @@ class SheetImporterService:
 
         barcode_label_generator = BarcodeLabelGenerator()
         barcode_label_generator.eans_and_skus = self.generator.eans_and_skus
-        barcode_label_generator.set_label_format(self.label_format.get())
-
-        barcode_label_generator = BarcodeLabelGenerator()
-        barcode_label_generator.eans_and_skus = self.generator.eans_and_skus
-        barcode_label_generator.set_label_format(self.label_format.get())
+        barcode_label_generator.set_label_format(self.label_format.get(), self.code_type.get())
 
         try:
             self.zpl_code = barcode_label_generator.generate_zpl()

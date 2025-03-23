@@ -431,6 +431,10 @@ class BarcodeScreen:
         self.zpl_code = None
         self.print_button_zpl.config(state=tk.DISABLED)
         self.print_button_pdf.config(state=tk.DISABLED)
+
+        self.preview_image_label.config(image="")
+        self.preview_image_label.image = None
+
         messagebox.showinfo("Sucesso", "Todos os dados foram limpos.")
 
     def add_entry(self):
@@ -441,6 +445,9 @@ class BarcodeScreen:
         size = self.size_entry.get().strip()
         code = self.code_product_entry.get().strip()
         code_type = self.code_type.get()
+        
+        self.preview_image_label.config(image="")
+        self.preview_image_label.image = None
 
         ean = ean if ean else "-"
         sku = sku if sku else "-"
@@ -580,7 +587,7 @@ class BarcodeScreen:
             else:
                 self.generator.add_ean_sku(ean, sku, quantity, description)
 
-        self.generator.set_label_format(label_format)
+        self.generator.set_label_format(label_format, selected_type)
         self.zpl_code = self.generator.generate_zpl()
 
         if self.zpl_code:

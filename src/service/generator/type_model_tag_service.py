@@ -31,13 +31,13 @@ class TypeModelTagService:
     def generate_code_128_full_mercado_livre(self, zpl: list, code: str, sku: str, description: str, size: str, label_format: str) -> None:
         if label_format == "1-Coluna":
             zpl.append("^LH0,0")
-            zpl.append(f"^FO65,18^BY2,,0^BCN,54,N,N^FD{code}^FS")
-            zpl.append(f"^FO145,80^A0N,20,25^FH^FD{code}^FS")
-            zpl.append(f"^FO146,80^A0N,20,25^FH^FD{code}^FS")
-            zpl.append(f"^FO22,115^A0N,18,18^FB380,2,0,L^FH^FD{description}^FS")
-            zpl.append(f"^FO22,150^A0N,18,18^FB380,1,0,L^FH^FD{size}^FS")
-            zpl.append(f"^FO21,150^A0N,18,18^FB380,1,0,L^FH^FD{size}^FS")
-            zpl.append(f"^FO22,170^A0N,18,18^FH^FDSKU: {sku}^FS")
+            zpl.append(f"^FO290,18^BY2,,0^BCN,54,N,N^FD{code}^FS")
+            zpl.append(f"^FO375,80^A0N,20,25^FH^FD{code}^FS")
+            zpl.append(f"^FO375,80^A0N,20,25^FH^FD{code}^FS")
+            zpl.append(f"^FO290,115^A0N,18,18^FB380,2,0,L^FH^FD{description}^FS")
+            zpl.append(f"^FO290,150^A0N,18,18^FB380,1,0,L^FH^FD{size}^FS")
+            zpl.append(f"^FO290,150^A0N,18,18^FB380,1,0,L^FH^FD{size}^FS")
+            zpl.append(f"^FO290,170^A0N,18,18^FH^FDSKU: {sku}^FS")
         elif label_format == "2-Colunas":
 
             # Coluna da esquerda
@@ -63,10 +63,10 @@ class TypeModelTagService:
     def generate_code_128_full_amazon(self, zpl: list, code: str, sku: str, description: str,
                                              label_format: str) -> None:
         if label_format == "1-Coluna":
-            zpl.append(f"^FO62,18^BY2,,0^BCN,54,N,N^FD{code}^FS")  # Código de barras
-            zpl.append(f"^FO143,85^A0N,20,25^FH^FD{code}^FS")  # Código como texto
-            zpl.append(f"^FO143,115^A0N,18,18^FB380,2,0,L^FH^FD{description}^FS")  # Descrição do produto
-            zpl.append(f"^FO22,170^A0N,18,18^FH^FDSKU: {sku}^FS")  # SKU
+            zpl.append(f"^FO290,18^BY2,,0^BCN,54,N,N^FD{code}^FS")  # Código de barras
+            zpl.append(f"^FO365,85^A0N,20,25^FH^FD{code}^FS")  # Código como texto
+            zpl.append(f"^FO365,115^A0N,18,18^FB380,2,0,L^FH^FD{description}^FS")  # Descrição do produto
+            zpl.append(f"^FO290,170^A0N,18,18^FH^FDSKU: {sku}^FS")  # SKU
 
         elif label_format == "2-Colunas":
             # Coluna da esquerda
