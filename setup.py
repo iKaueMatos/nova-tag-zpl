@@ -2,8 +2,7 @@ import sys
 from cx_Freeze import setup, Executable
 
 build_exe_options = {
-    "packages": ["tkinter", "pandas", "openpyxl", "reportlab", "os", "shutil", "requests", "zebra", "http", "plyer"],
-    "includes": ["src.views.barcode_label_app"],
+    "packages": ["tkinter", "pandas", "openpyxl", "reportlab", "shutil", "requests", "zebra", "http", "plyer", "pystray", "fpdf", "ttkbootstrap"],
     "excludes": ["unittest", "email", "http", "pdb"],
     "include_files": [
         ("./nova-software-logo.ico", "nova-software-logo.ico"),
