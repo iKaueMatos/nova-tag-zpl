@@ -38,6 +38,12 @@ class LabelGenerator:
             else:
                 ean, sku, quantity, description, code, size = item
 
+            ean = ean if ean != "-" else ""
+            sku = sku if sku != "-" else ""
+            description = description if description != "-" else ""
+            code = code if code != "-" else ""
+            size = size if size != "-" else ""
+
             adjusted_quantity = quantity if quantity % 2 == 0 else quantity + 1
             for _ in range(adjusted_quantity // 2):
                 zpl.append("^XA^CI28")
@@ -70,19 +76,28 @@ class LabelGenerator:
             else:
                 ean, sku, quantity, description, size, code = item
 
+            ean = ean if ean != "-" else ""
+            sku = sku if sku != "-" else ""
+            description = description if description != "-" else ""
+            code = code if code != "-" else ""
+            size = size if size != "-" else ""
+
             for _ in range(quantity):
                 zpl.append("^XA^CI28")
                 zpl.append("^PW800")
                 zpl.append("^LL300")
 
                 if sku and description and code and size:
-                    self.type_model_tag_service.generate_code_128_full(zpl, code, sku, description, size,
-                                                                       self.label_format)
+                    self.type_model_tag_service.generate_code_128_full_mercado_livre(zpl, code, sku, description, size,
+                                                                                     self.label_format)
+                if sku and description and code:
+                    self.type_model_tag_service.generate_code_128_full_amazon(zpl, code, sku, description,
+                                                                              self.label_format)
                 if ean and sku:
                     self.type_model_tag_service.append_both_label(zpl, ean, sku)
                 if ean and not sku:
                     self.type_model_tag_service.generate_ean(zpl, ean, self.label_format)
-                if sku and not ean:
+                if sku and not description:
                     self.type_model_tag_service.generate_code_128(zpl, sku, self.label_format)
 
                 zpl.append("^XZ")

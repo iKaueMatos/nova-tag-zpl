@@ -12,7 +12,6 @@ import io
 from src.infra.repositories.printer_repo import PrinterRepository
 from src.utils.dialog_center import DialogCenter
 
-
 class ZPLManualView:
     def __init__(self, parent, printer_service, zebra_labelary_api_service):
         self.printer_service = printer_service
@@ -159,7 +158,7 @@ class ZPLManualView:
                 "24 dpmm (600 dpi)": "24dpmm"
             }
             selected_density_text = self.density_combobox.get()
-            density = density_mapping.get(selected_density_text, "8dpmm")  # fallback padrão
+            density = density_mapping.get(selected_density_text, "8dpmm")
 
             image_data = self.zebra_labelary_api_service.generate_preview_image(
                 zpl_code,

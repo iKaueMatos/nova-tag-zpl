@@ -1,4 +1,4 @@
- # ----------------------------------------------------------------------------
+# ----------------------------------------------------------------------------
  # Autor: Kaue de Matos
  # Empresa: Nova Software
  # Propriedade da Empresa: Todos os direitos reservados
@@ -24,10 +24,8 @@ from src.service.generator.strategy.add_full_mercadolivre_strategy import AddFul
 from src.service.generator.strategy.add_sku_strategy import AddSKUStrategy
 from src.utils.dialog_center import DialogCenter
 from src.service.validation.ean_validator import EANValidator
-from src.views.credentials.credentials_screen import CredentialsScreen
 from src.views.printerzpl.zpl_manual_screen import ZPLManualView
 from src.infra.repositories.printer_repo import PrinterRepository
-from src.views.product.product_screen import ProductScreen
 from src.views.modal.show_shortcuts import ShowShortcuts
 
 class BarcodeScreen:
@@ -516,8 +514,6 @@ class BarcodeScreen:
     def calculate_quantity_to_send(self, total_quantity, columns):
         if columns == 2:
             return total_quantity if total_quantity % 2 == 0 else total_quantity + 1
-        elif columns == 4:
-            return math.ceil(total_quantity / 4) * 4
         return total_quantity
 
     def import_sheet(self):
@@ -557,8 +553,12 @@ class BarcodeScreen:
 
             if label_format == "2-Colunas":
                 columns = 2
-            elif label_format == "4-etiquetas por página":
-                columns = 4
+                
+            if columns == 1:
+                messagebox.showinfo("Informação", "A impressão será de uma etiqueta 80x30.")
+            
+            if columns == 2:
+                messagebox.showinfo("Informação", "A impressão será de uma etiqueta 100x25.")
 
             adjusted_quantity = self.calculate_quantity_to_send(quantity, columns)
             labels_data.append((ean, sku, adjusted_quantity, description, code_product, size))
@@ -715,11 +715,6 @@ class BarcodeScreen:
     def open_screen(self, screen_name):
         if screen_name == "Impressao ZPL":
             ZPLManualView(self.root, self.printer_service, self.zebra_labelary_api_service)
-        elif screen_name == "ERP":
-            CredentialsScreen(self.root)
-        elif screen_name == "Exibir Produtos":
-            product_window = tk.Toplevel(self.root)
-            ProductScreen(product_window, self)
         else:
             messagebox.showinfo("Info", f"Tela '{screen_name}' não implementada.")
 

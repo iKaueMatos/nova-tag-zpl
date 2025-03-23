@@ -11,6 +11,7 @@ import pandas as pd
 from src.models import BarcodeLabelGenerator
 from src.service.generator.strategy.add_both_strategy import AddBothStrategy
 from src.service.generator.strategy.add_ean_strategy import AddEANStrategy
+from src.service.generator.strategy.add_full_amazon_strategy import AddFullAmazonStrategy
 from src.service.generator.strategy.add_full_mercadolivre_strategy import AddFullMercadoLivreStrategy
 from src.service.generator.strategy.add_sku_strategy import AddSKUStrategy
 from src.service.validation.ean_validator import EANValidator
@@ -110,6 +111,8 @@ class SheetImporterService:
                 selected_code_type = "Ambos(EAN e SKU)"
             elif full_ml_var.get():
                 selected_code_type = "Full Mercado Livre"
+            elif full_az_var.get():
+                selected_code_type = "Full Amazon"
 
             if one_column_var.get():
                 self.label_format.set("1-Coluna")
@@ -127,6 +130,7 @@ class SheetImporterService:
         sku_var = tk.BooleanVar()
         both_var = tk.BooleanVar()
         full_ml_var = tk.BooleanVar()
+        full_az_var = tk.BooleanVar()
         one_column_var = tk.BooleanVar()
         two_column_var = tk.BooleanVar()
 
@@ -135,6 +139,7 @@ class SheetImporterService:
         tk.Checkbutton(dialog, text="SKU", variable=sku_var).pack()
         tk.Checkbutton(dialog, text="Ambos (EAN e SKU)", variable=both_var).pack()
         tk.Checkbutton(dialog, text="Full Mercado Livre", variable=full_ml_var).pack()
+        tk.Checkbutton(dialog, text="Full Amazon", variable=full_az_var).pack()
 
         tk.Label(dialog, text="Selecione o formato da etiqueta:").pack()
         tk.Checkbutton(dialog, text="1-Coluna", variable=one_column_var).pack()
@@ -152,9 +157,11 @@ class SheetImporterService:
             "EAN": AddEANStrategy(),
             "SKU": AddSKUStrategy(),
             "Ambos(EAN e SKU)": AddBothStrategy(),
-            "Full Mercado Livre": AddFullMercadoLivreStrategy()
+            "Full Mercado Livre": AddFullMercadoLivreStrategy(),
+            "Full Amazon": AddFullAmazonStrategy()
         }
 
+        duplicated_entries = []
         for _, row in data.iterrows():
             try:
                 ean = int(row.get("EAN")) if pd.notnull(row.get("EAN")) else "-"
@@ -174,6 +181,7 @@ class SheetImporterService:
                 continue
 
             if any(ean == existing[0] and sku == existing[1] for existing in self.generator.eans_and_skus):
+                duplicated_entries.append(f"EAN: {ean}, SKU: {sku}")
                 continue
 
             strategy = strategy_map.get(self.code_type.get())
@@ -181,6 +189,10 @@ class SheetImporterService:
                 strategy.add(self.generator, ean, sku, quantity, description, code, size)
 
             self.tree.insert("", tk.END, values=(ean, sku, quantity, description, code, size))
+
+        if duplicated_entries:
+            messagebox.showwarning("Aviso", f"Os seguintes itens já existem e foram desconsiderados:\n" + "\n".join(
+                duplicated_entries))
 
         messagebox.showinfo("Sucesso", "Dados processados")
 

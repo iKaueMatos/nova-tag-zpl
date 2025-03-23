@@ -40,7 +40,7 @@ class TemplateDownloadService:
             "- Preencha a coluna 'EAN' com os códigos de barras dos produtos.\n"
             "- A coluna 'SKU' deve conter o identificador único do produto.\n"
             "- A coluna 'Quantidade' indica quantas etiquetas daquele EAN do produto serão geradas.\n"
-            "- A coluna 'Código' deve conter um identificador exclusivo de 9 dígitos.\n"
+            "- A coluna 'Código' deve conter um identificador exclusivo de 9(Full Amazon) ou 8(Full Mercado livre) dígitos.\n"
             "- A coluna 'Descrição' pode conter detalhes adicionais do produto.\n"
             "- A coluna 'Tamanho' deve conter informações como P, M, G, etc.\n"
             "- Se não quiser preencher um dado, deixe em branco e o sistema irá substituir por '-'.\n"
