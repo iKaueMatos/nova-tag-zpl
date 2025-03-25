@@ -497,10 +497,12 @@ class BarcodeScreen:
 
         strategy = strategy_map.get(code_type)
 
+        label_format = self.label_format.get()
+        adjusting_quantity = self.calculate_quantity_to_send(quantity, label_format)
         if strategy:
-            strategy.add(self.generator, ean, sku, quantity, description, code, size)
+            strategy.add(self.generator, ean, sku, adjusting_quantity, description, code, size)
 
-        self.tree.insert("", tk.END, values=(ean, sku, quantity, description, code, size))
+        self.tree.insert("", tk.END, values=(ean, sku, adjusting_quantity, description, code, size))
 
         if ean == "-":
             self.manual_skus.append("")
