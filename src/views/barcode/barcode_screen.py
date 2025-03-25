@@ -314,7 +314,6 @@ class BarcodeScreen:
         self.root.bind("<Control-a>", self.select_all_rows)
         self.tree.bind("<ButtonRelease-1>", self.on_row_click)
         self.root.bind("<Return>", lambda event: self.generate_zpl())
-        self.tree.bind("<Double-1>", self.on_double_click)
         self.label_text.bind("<Button-1>", self.copy_zpl)
         self.root.bind("<Button-1>", self.deselect_on_click_outside)
 
@@ -442,7 +441,7 @@ class BarcodeScreen:
         size = self.size_entry.get().strip()
         code = self.code_product_entry.get().strip()
         code_type = self.code_type.get()
-        
+
         self.preview_image_label.config(image="")
         self.preview_image_label.image = None
 
@@ -458,11 +457,13 @@ class BarcodeScreen:
         quantity = int(quantity)
 
         if code_type == "Full Mercado Livre" and code != "-" and len(code) != 9:
-            messagebox.showerror("Erro", "O código inserido deve ter exatamente 9 caracteres no modelo de etiqueta (Full Mercado Livre).")
+            messagebox.showerror("Erro",
+                                 "O código inserido deve ter exatamente 9 caracteres no modelo de etiqueta (Full Mercado Livre).")
             return
 
         if code_type == "Full Amazon" and code != "-" and len(code) != 10:
-            messagebox.showerror("Erro", "O código inserido deve ter exatamente 9 caracteres no modelo de etiqueta (Full Amazon).")
+            messagebox.showerror("Erro",
+                                 "O código inserido deve ter exatamente 10 caracteres no modelo de etiqueta (Full Amazon).")
             return
 
         if code_type == "EAN":
@@ -476,20 +477,14 @@ class BarcodeScreen:
             messagebox.showerror("Erro", "Por favor, preencha o campo SKU.")
             return
 
-        eans_exits = {item[0] for item in self.generator.eans_and_skus}
-        skus_exist = {item[1] for item in self.generator.eans_and_skus}
+        if self.is_duplicate_ean(ean):
+            messagebox.showwarning("Aviso", f"O EAN '{ean}' já foi adicionado anteriormente.")
+            self.highlight_existing_item(ean=ean)
+            return
 
-        if ean in eans_exits or sku in skus_exist or ean in self.manual_eans or sku in self.manual_skus or code in self.manual_code_product:
-            messagebox.showwarning("Aviso",
-                                   f"O EAN '{ean}', SKU '{sku}' ou código '{code}' já existem e foram desconsiderados.")
-
-            for item in self.tree.get_children():
-                item_values = self.tree.item(item, 'values')
-                if item_values[0] == ean or item_values[1] == sku:
-                    self.tree.selection_set(item)
-                    self.tree.focus(item)
-                    self.tree.see(item)
-                    break
+        if self.is_duplicate_sku(sku):
+            messagebox.showwarning("Aviso", f"O SKU '{sku}' já foi adicionado anteriormente.")
+            self.highlight_existing_item(sku=sku)
             return
 
         strategy_map = {
@@ -507,13 +502,37 @@ class BarcodeScreen:
 
         self.tree.insert("", tk.END, values=(ean, sku, quantity, description, code, size))
 
-        self.manual_eans.append(ean)
-        self.manual_skus.append(sku)
-        self.manual_code_product.append(code)
+        if ean == "-":
+            self.manual_skus.append("")
+        else:
+            self.manual_eans.append(ean)
+        if sku == "-":
+            self.manual_skus.append("")
+        else:
+            self.manual_skus.append(sku)
 
-        for entry in [self.ean_entry, self.sku_entry, self.quantity_entry, self.description_entry,
-                      self.code_product_entry, self.size_entry]:
+        for entry in [self.ean_entry, self.sku_entry, self.quantity_entry,
+                      self.description_entry, self.code_product_entry, self.size_entry]:
             entry.delete(0, tk.END)
+
+    def is_duplicate_ean(self, ean):
+        existing_eans = {item[0] for item in self.generator.eans_and_skus}
+        return ean in existing_eans or ean in self.manual_eans
+
+    def is_duplicate_sku(self, sku):
+        existing_skus = {item[1] for item in self.generator.eans_and_skus}
+        return sku in existing_skus or sku in self.manual_skus
+
+    def highlight_existing_item(self, ean=None, sku=None, code=None):
+        for item in self.tree.get_children():
+            item_values = self.tree.item(item, 'values')
+            if (ean and item_values[0] == ean) or \
+                    (sku and item_values[1] == sku) or \
+                    (code and item_values[4] == code):
+                self.tree.selection_set(item)
+                self.tree.focus(item)
+                self.tree.see(item)
+                break
 
     def calculate_quantity_to_send(self, total_quantity, columns):
         if columns == 2:
@@ -527,9 +546,7 @@ class BarcodeScreen:
         self.template_download_service.download_template()
 
     def generate_zpl(self):
-        global label_format
         selected_items = self.tree.selection()
-
         if not selected_items:
             messagebox.showerror("Erro", "Por favor, selecione ao menos uma linha na tabela.")
             return
@@ -537,8 +554,16 @@ class BarcodeScreen:
         selected_type = self.code_type.get()
         labels_data = []
 
+        label_format = self.label_format.get()
+        columns = 2 if label_format == "2-Colunas" else 1
+
+        if columns == 1:
+            messagebox.showinfo("Informação", "A impressão será de uma etiqueta 80x30.")
+        else:
+            messagebox.showinfo("Informação", "A impressão será de uma etiqueta 100x25.")
+
         for item in selected_items:
-            item_values = self.tree.item(item, 'values')
+            item_values = self.tree.item(item, "values")
             ean, sku, quantity_str, description, code_product, size = item_values
 
             if not quantity_str.isdigit():
@@ -547,22 +572,8 @@ class BarcodeScreen:
 
             quantity = int(quantity_str)
 
-            if selected_type == "EAN" and not ean:
+            if (selected_type == "EAN" and not ean) or (selected_type == "SKU" and not sku):
                 continue
-            if selected_type == "SKU" and not sku:
-                continue
-
-            label_format = self.label_format.get()
-            columns = 1
-
-            if label_format == "2-Colunas":
-                columns = 2
-                
-            if columns == 1:
-                messagebox.showinfo("Informação", "A impressão será de uma etiqueta 80x30.")
-            
-            if columns == 2:
-                messagebox.showinfo("Informação", "A impressão será de uma etiqueta 100x25.")
 
             adjusted_quantity = self.calculate_quantity_to_send(quantity, columns)
             labels_data.append((ean, sku, adjusted_quantity, description, code_product, size))
@@ -575,11 +586,11 @@ class BarcodeScreen:
         for ean, sku, quantity, description, code_product, size in labels_data:
             if selected_type == "EAN":
                 self.generator.add_ean_sku(ean, "", quantity, "")
-            if selected_type == "SKU":
+            elif selected_type == "SKU":
                 self.generator.add_ean_sku("", sku, quantity, "")
-            if selected_type == "Full Mercado Livre":
+            elif selected_type == "Full Mercado Livre":
                 self.generator.add_sku_code_description_tag_full("", sku, quantity, description, code_product, size)
-            if selected_type == "Full Amazon":
+            elif selected_type == "Full Amazon":
                 self.generator.add_sku_code_description_tag_full("", sku, quantity, description, code_product, "")
             else:
                 self.generator.add_ean_sku(ean, sku, quantity, description)
@@ -588,19 +599,33 @@ class BarcodeScreen:
         self.zpl_code = self.generator.generate_zpl()
 
         if self.zpl_code:
-            self.label_text.config(state="normal")
-            self.label_text.delete("1.0", tk.END)
-            self.label_text.insert("1.0", self.zpl_code)
-            self.label_text.config(state="disabled")
-            self.print_button_zpl.config(state=tk.NORMAL)
-            self.print_button_pdf.config(state=tk.NORMAL)
-            self.pdf_button.config(state=tk.NORMAL)
+            self.update_label_textbox()
             messagebox.showinfo("Sucesso", "Código ZPL gerado com sucesso!")
         else:
+            self.disable_buttons()
             messagebox.showerror("Erro", "Falha ao gerar o código ZPL.")
-            self.print_button_zpl.config(state=tk.DISABLED)
-            self.print_button_pdf.config(state=tk.DISABLED)
-            self.pdf_button.config(state=tk.DISABLED)
+
+    def calculate_quantity_to_send(self, quantity, columns):
+        """ Garante que a quantidade seja par para 2 colunas. """
+        if columns == 2:
+            return quantity if quantity % 2 == 0 else quantity + 1
+        return quantity
+
+    def update_label_textbox(self):
+        """ Atualiza a interface gráfica com o código ZPL gerado. """
+        self.label_text.config(state="normal")
+        self.label_text.delete("1.0", tk.END)
+        self.label_text.insert("1.0", self.zpl_code)
+        self.label_text.config(state="disabled")
+        self.print_button_zpl.config(state=tk.NORMAL)
+        self.print_button_pdf.config(state=tk.NORMAL)
+        self.pdf_button.config(state=tk.NORMAL)
+
+    def disable_buttons(self):
+        """ Desativa os botões caso o código ZPL não seja gerado. """
+        self.print_button_zpl.config(state=tk.DISABLED)
+        self.print_button_pdf.config(state=tk.DISABLED)
+        self.pdf_button.config(state=tk.DISABLED)
 
     def save_zpl(self):
         if not self.zpl_code:
@@ -686,36 +711,6 @@ class BarcodeScreen:
             self.printer_service.clear_print_queue()
             messagebox.showinfo("Pausado", "A impressão foi pausada com sucesso.")
 
-    def on_double_click(self, event):
-        """Permite edição da coluna 'Quantidade' ao dar um duplo clique."""
-        selected_item = self.tree.selection()
-        if not selected_item:
-            return
-
-        item = selected_item[0]
-        column_id = self.tree.identify_column(event.x)
-        column_index = int(column_id[1:]) - 1
-
-        if column_index != 2:
-            return
-
-        x, y, width, height = self.tree.bbox(item, column_index)
-        entry = ttk.Entry(self.tree)
-        entry.place(x=x, y=y, width=width, height=height)
-
-        def save_edit(event):
-            """Salva o novo valor e remove o campo de entrada."""
-            new_value = entry.get().strip()
-            if new_value.isdigit():
-                self.tree.set(item, column="Quantidade", value=new_value)
-            entry.destroy()
-
-        entry.insert(0, self.tree.item(item, "values")[2])
-        entry.focus()
-        entry.bind("<Return>", save_edit)
-        entry.bind("<FocusOut>", lambda e: entry.destroy())
-        self.tree.bind("<Double-1>", self.on_double_click)
-
     def open_screen(self, screen_name):
         if screen_name == "Impressao ZPL":
             ZPLManualView(self.root, self.printer_service, self.zebra_labelary_api_service)
@@ -727,11 +722,6 @@ class BarcodeScreen:
             self.select_all_rows()
         else:
             self.tree.selection_remove(self.tree.get_children())
-
-    def add_product_to_barcode(self, ean, sku, quantity):
-        self.tree.insert("", tk.END, values=(ean, sku, quantity))
-        self.manual_eans.append(ean)
-        self.manual_skus.append(sku)
 
     def update_preview(self):
         """
@@ -772,14 +762,6 @@ class BarcodeScreen:
         if selected_item:
             self.tree.selection_set(selected_item)
             self.context_menu.post(event.x_root, event.y_root)
-
-    def set_quantity(self, item):
-        new_quantity = self.entry.get().strip()
-        if new_quantity.isdigit():
-            self.tree.set(item, column="Quantidade", value=new_quantity)
-            self.quantity_window.destroy()
-        else:
-            messagebox.showerror("Erro", "Quantidade inválida. Por favor, insira um número válido.")
             
     def remove_selected(self):
         selected_item = self.tree.selection()
@@ -828,6 +810,7 @@ class BarcodeScreen:
         self.edit_window.title("Editar Dados da Etiqueta")
         self.edit_window.geometry("600x350")
         self.edit_window.grab_set()
+        DialogCenter.center_window(self.edit_window)
 
         labels = ["EAN", "SKU", "Quantidade", "Descrição", "Código", "Tamanho"]
         self.edit_entries = {}
