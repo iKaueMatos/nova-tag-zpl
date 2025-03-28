@@ -7,10 +7,11 @@ import sys
 import tkinter as tk
 from tkinter import ttk, scrolledtext, messagebox, simpledialog, filedialog
 from PIL import Image, ImageTk
-import io
 
 from src.infra.repositories.printer_repo import PrinterRepository
 from src.utils.dialog_center import DialogCenter
+from src.utils.notification_windows_linux import NotificationWindowsLinux
+
 
 class ZPLManualView:
     def __init__(self, parent, printer_service, zebra_labelary_api_service):
@@ -38,6 +39,7 @@ class ZPLManualView:
         self.window.rowconfigure(0, weight=1)
         self.build_menu_bar()
         self.build_layout()
+        self.bind_shortcuts()
         self.minimize_main_window()
         self.check_existing_printer()
 
@@ -79,7 +81,6 @@ class ZPLManualView:
         bottom_config_frame = ttk.Frame(self.window, padding=10)
         bottom_config_frame.grid(row=1, column=0, columnspan=2, sticky="ew")
 
-        # Subframe: Densidade de impressão
         density_frame = ttk.Frame(bottom_config_frame)
         density_frame.pack(side="left", padx=10)
 
@@ -132,8 +133,8 @@ class ZPLManualView:
         self.preview_button = ttk.Button(button_frame, text="Gerar Preview", command=self.generate_preview)
         self.preview_button.pack(side="left", padx=5, pady=5)
 
-        self.print_button = ttk.Button(button_frame, text="Imprimir", command=self.print_zpl)
-        self.print_button.pack(side="left", padx=5, pady=5)
+        self.print_button_zpl = ttk.Button(button_frame, text="Imprimir", command=self.print_zpl)
+        self.print_button_zpl.pack(side="left", padx=5, pady=5)
 
         self.upload_button = ttk.Button(button_frame, text="Upload Arquivo", command=self.upload_file)
         self.upload_button.pack(side="left", padx=5, pady=5)
@@ -207,37 +208,6 @@ class ZPLManualView:
             self.printer_service.set_density(density_value)
             messagebox.OK
 
-    def select_printer(self):
-        printers = self.printer_service.get_printers()
-        if not printers:
-            messagebox.showerror("Erro", "Nenhuma impressora disponível.")
-            return
-
-        def confirm_selection():
-            selected = printer_var.get()
-            if selected in printers:
-                self.printer_service.set_printer(selected)
-                messagebox.showinfo("Sucesso", f"Impressora selecionada: {selected}")
-                popup.destroy()
-            else:
-                messagebox.showwarning("Aviso", "Selecione uma impressora válida.")
-
-        popup = tk.Toplevel(self.window)
-        popup.title("Selecionar Impressora")
-        popup.geometry("400x200")
-        popup.grab_set()
-        DialogCenter.center_window(popup)
-
-        tk.Label(popup, text="Escolha uma impressora:").pack(pady=5)
-
-        printer_var = tk.StringVar(value=printers[0])
-
-        printer_combobox = ttk.Combobox(popup, textvariable=printer_var, values=printers, state="readonly")
-        printer_combobox.pack(pady=10, padx=10, fill="x")
-        printer_combobox.config(width=30)
-        printer_combobox.current(0)
-        ttk.Button(popup, text="Confirmar", command=confirm_selection).pack(pady=10)
-
     def upload_file(self):
         file_path = filedialog.askopenfilename(filetypes=[("Arquivos de Texto", "*.txt"), ("Arquivos ZPL", "*.zpl")])
         if not file_path:
@@ -268,9 +238,62 @@ class ZPLManualView:
         printers = PrinterRepository.list_all_printers()
         if printers:
             self.selected_printer = printers[0]['option_printer']
-            self.print_button.config(state=tk.NORMAL)
+
+            if self.selected_printer is not None:
+                NotificationWindowsLinux.show_notification(f"Impressora encontrada", f"Modelo: {self.selected_printer}")
+            self.print_button_zpl.config(state=tk.NORMAL)
         else:
-            self.print_button.config(state=tk.DISABLED)
+            if hasattr(self, 'memory_printer'):
+                NotificationWindowsLinux.show_notification("Impressora encontrada",
+                                                           f"Modelo temporário: {self.memory_printer}")
+                self.selected_printer = self.memory_printer
+                self.print_button_zpl.config(state=tk.NORMAL)
+            else:
+                NotificationWindowsLinux.show_notification("Nenhuma impressora encontrada",
+                                                           "Por favor selecione uma impressora antes de imprimir")
+                self.print_button_zpl.config(state=tk.DISABLED)
+
+    def select_printer(self):
+        printers = self.printer_service.get_printers()
+        if not printers:
+            messagebox.showerror("Erro", "Nenhuma impressora disponível.")
+            return
+
+        def confirm_selection():
+            selected = printer_var.get()
+            if selected in printers:
+                self.selected_printer = selected
+                self.printer_service.set_printer(selected)
+
+                try:
+                    PrinterRepository.insert_or_update_printer(selected)
+                except Exception as e:
+                    self.memory_printer = selected
+                    messagebox.showwarning("Aviso",
+                                           f"Não foi possível salvar no banco de dados. Impressora salva temporariamente.\nErro: {e}")
+
+                messagebox.showinfo("Sucesso", f"Impressora selecionada: {selected}")
+                self.print_button.config(state=tk.NORMAL)
+                popup.destroy()
+            else:
+                messagebox.showwarning("Aviso", "Selecione uma impressora válida.")
+
+        popup = tk.Toplevel(self.parent)
+        popup.title("Selecionar Impressora")
+        popup.geometry("400x200")
+        popup.grab_set()
+
+        DialogCenter.center_window(popup)
+
+        tk.Label(popup, text="Escolha uma impressora:").pack(pady=5)
+
+        printer_var = tk.StringVar(value=printers[0])
+        printer_combobox = ttk.Combobox(popup, textvariable=printer_var, values=printers, state="readonly")
+        printer_combobox.pack(pady=10, padx=10, fill="x")
+        printer_combobox.config(width=30)
+        printer_combobox.current(0)
+
+        ttk.Button(popup, text="Confirmar", command=confirm_selection).pack(pady=10)
 
     def convert_to_inches(self, value, unit):
         try:
@@ -282,3 +305,28 @@ class ZPLManualView:
             return value
         except ValueError:
             return 0
+
+    def bind_shortcuts(self):
+        self.window.bind("<Control-a>", self.select_all)
+        self.window.bind("<Control-A>", self.select_all)
+        self.window.bind("<Control-c>", self.copy_text)
+        self.window.bind("<Control-C>", self.copy_text)
+        self.window.bind("<Control-v>", self.paste_text)
+        self.window.bind("<Control-V>", self.paste_text)
+
+    def select_all(self, event=None):
+        self.zpl_textarea.tag_add("sel", "1.0", "end")
+        return "break"
+
+    def copy_text(self, event=None):
+        self.window.clipboard_clear()
+        self.window.clipboard_append(self.zpl_textarea.get("sel.first", "sel.last"))
+        return "break"
+
+    def paste_text(self, event=None):
+        try:
+            text = self.window.clipboard_get()
+            self.zpl_textarea.insert("insert", text)
+        except tk.TclError:
+            pass
+        return "break"

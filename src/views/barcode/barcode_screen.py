@@ -6,7 +6,6 @@
 from tkinter import filedialog, messagebox, simpledialog, scrolledtext
 import tkinter as tk
 from tkinter import ttk
-import math
 
 from src.core.config.config import Config
 from src.core.config.enum.label_format_constants import LabelFormatConstants
@@ -23,6 +22,7 @@ from src.service.generator.strategy.add_full_mercadolivre_strategy import AddFul
 from src.service.generator.strategy.add_sku_strategy import AddSKUStrategy
 from src.utils.dialog_center import DialogCenter
 from src.service.validation.ean_validator import EANValidator
+from src.utils.notification_windows_linux import NotificationWindowsLinux
 from src.views.printerzpl.zpl_manual_screen import ZPLManualView
 from src.infra.repositories.printer_repo import PrinterRepository
 from src.views.modal.show_shortcuts import ShowShortcuts
@@ -341,10 +341,20 @@ class BarcodeScreen:
         printers = PrinterRepository.list_all_printers()
         if printers:
             self.selected_printer = printers[0]['option_printer']
+
+            if self.selected_printer is not None:
+                NotificationWindowsLinux.show_notification(f"Impressora encontrada", f"Modelo: {self.selected_printer}")
             self.print_button_zpl.config(state=tk.NORMAL)
         else:
-            self.print_button_zpl.config(state=tk.DISABLED)
-
+            if hasattr(self, 'memory_printer'):
+                NotificationWindowsLinux.show_notification("Impressora encontrada",
+                                                           f"Modelo temporário: {self.memory_printer}")
+                self.selected_printer = self.memory_printer
+                self.print_button_zpl.config(state=tk.NORMAL)
+            else:
+                NotificationWindowsLinux.show_notification("Nenhuma impressora encontrada",
+                                                           "Por favor selecione uma impressora antes de imprimir")
+                self.print_button_zpl.config(state=tk.DISABLED)
     def select_printer(self):
         printers = self.printer_service.get_printers()
         if not printers:
@@ -356,8 +366,16 @@ class BarcodeScreen:
             if selected in printers:
                 self.selected_printer = selected
                 self.printer_service.set_printer(selected)
-                self.config.save_printer(selected)
-                PrinterRepository.insert_printer(selected)
+
+                try:
+                    PrinterRepository.insert_or_update_printer(selected)
+                    if hasattr(self, 'memory_printer'):
+                        del self.memory_printer
+                except Exception as e:
+                    self.memory_printer = selected
+                    messagebox.showwarning("Aviso",
+                                           f"Não foi possível salvar no banco de dados. Impressora salva temporariamente.\nErro: {e}")
+
                 messagebox.showinfo("Sucesso", f"Impressora selecionada: {selected}")
                 self.print_button_zpl.config(state=tk.NORMAL)
                 popup.destroy()
@@ -374,7 +392,6 @@ class BarcodeScreen:
         tk.Label(popup, text="Escolha uma impressora:").pack(pady=5)
 
         printer_var = tk.StringVar(value=printers[0])
-
         printer_combobox = ttk.Combobox(popup, textvariable=printer_var, values=printers, state="readonly")
         printer_combobox.pack(pady=10, padx=10, fill="x")
         printer_combobox.config(width=30)
@@ -402,7 +419,10 @@ class BarcodeScreen:
     def print_pdf_label(self, pdf_file_path):
         """Imprime o PDF gerado usando o caminho do arquivo PDF."""
         if not pdf_file_path:
-            messagebox.showerror("Erro", "Nenhum arquivo PDF válido encontrado.")
+            messagebox.showerror("Erro",
+                                 "O arquivo PDF não existe. Primeiro, gere o PDF da etiqueta e depois selecione a impressora.")
+            NotificationWindowsLinux.show_notification("Erro",
+                                                       "Primeiro gere o PDF da etiqueta e selecione a impressora para imprimir.")
             return
 
         confirm = messagebox.askyesno("Confirmação", "Deseja realmente imprimir o PDF?")
@@ -607,12 +627,6 @@ class BarcodeScreen:
             self.disable_buttons()
             messagebox.showerror("Erro", "Falha ao gerar o código ZPL.")
 
-    def calculate_quantity_to_send(self, quantity, columns):
-        """ Garante que a quantidade seja par para 2 colunas. """
-        if columns == 2:
-            return quantity if quantity % 2 == 0 else quantity + 1
-        return quantity
-
     def update_label_textbox(self):
         """ Atualiza a interface gráfica com o código ZPL gerado. """
         self.label_text.config(state="normal")
@@ -628,6 +642,7 @@ class BarcodeScreen:
         self.print_button_zpl.config(state=tk.DISABLED)
         self.print_button_pdf.config(state=tk.DISABLED)
         self.pdf_button.config(state=tk.DISABLED)
+        NotificationWindowsLinux.show_error_notification("Código zpl não encontrado!")
 
     def save_zpl(self):
         if not self.zpl_code:

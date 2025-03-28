@@ -1,4 +1,5 @@
 import sqlite3
+import os
 
 class Database:
     DB_NAME = "nova.db"
@@ -21,5 +22,3 @@ class Database:
 
         conn.commit()
         conn.close()
-
-Database.create_tables()

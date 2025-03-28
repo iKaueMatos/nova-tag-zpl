@@ -13,6 +13,7 @@ import sys
 
 def main():
     global root, is_dark_mode, theme_button, tray_icon
+    Database.create_tables()
 
     root = tb.Window(themename="cosmo")
     root.style.configure("Logo.TLabel", background="#222", font=("Arial", 12), foreground="#EEE")
@@ -55,7 +56,6 @@ def main():
     root.bind("<Control-q>", exit_application)
     root.protocol("WM_DELETE_WINDOW", minimize_to_tray)
 
-    Database.create_tables()
     create_tray_icon()
     root.mainloop()
 

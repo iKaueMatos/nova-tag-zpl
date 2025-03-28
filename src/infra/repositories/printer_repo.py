@@ -7,17 +7,26 @@ from src.core.database.database import Database
 
 class PrinterRepository:
     @staticmethod
-    def insert_printer(option_printer):
+    def insert_or_update_printer(option_printer):
         conn = Database.connect()
         cursor = conn.cursor()
 
-        cursor.execute("""
-        INSERT INTO printers (option_printer)
-        VALUES (?)
-        """, (option_printer,))
+        cursor.execute("SELECT id FROM printers WHERE option_printer = ?", (option_printer,))
+        existing_printer = cursor.fetchone()
+
+        if existing_printer:
+            cursor.execute("""
+                    UPDATE printers
+                    SET option_printer = ?
+                    WHERE id = ?
+                """, (option_printer, existing_printer[0]))
+        else:
+            cursor.execute("""
+                    INSERT INTO printers (option_printer)
+                    VALUES (?)
+                """, (option_printer,))
 
         conn.commit()
-        print("concluido!")
         conn.close()
 
     @staticmethod
@@ -26,15 +35,13 @@ class PrinterRepository:
         cursor = conn.cursor()
 
         cursor.execute("""
-        SELECT option_printer
-        FROM printers
-        WHERE id = ?
-        """, (printer_id,))
+            SELECT option_printer
+            FROM printers
+            WHERE id = ?
+            """, (printer_id))
 
         result = cursor.fetchone()
         conn.close()
-
-        print("impressora retornada")
 
         if result:
             return result[0]
