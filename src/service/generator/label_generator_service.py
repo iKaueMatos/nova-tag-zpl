@@ -67,7 +67,7 @@ class LabelGenerator:
                     self.type_model_tag_service.generate_code_128_full_amazon(zpl, item.code, item.sku,
                                                                               item.description, self.label_format)
                 elif model_tag == "Ambos(EAN e SKU)":
-                    self.type_model_tag_service.append_both_label(zpl, item.ean, item.sku)
+                    self.type_model_tag_service.append_both_label(zpl, item.ean, item.sku, self.label_format)
                 elif model_tag == "EAN":
                     self.type_model_tag_service.generate_ean(zpl, item.ean, self.label_format)
                 elif model_tag == "SKU":
@@ -94,7 +94,7 @@ class LabelGenerator:
                     self.type_model_tag_service.generate_code_128_full_amazon(zpl, item.code, item.sku,
                                                                               item.description, self.label_format)
                 elif model_tag == "Ambos(EAN e SKU)":
-                    self.type_model_tag_service.append_both_label(zpl, item.ean, item.sku)
+                    self.type_model_tag_service.append_both_label(zpl, item.ean, item.sku, self.label_format)
                 elif model_tag == "EAN":
                     self.type_model_tag_service.generate_ean(zpl, item.ean, self.label_format)
                 elif model_tag == "SKU":
